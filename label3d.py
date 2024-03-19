@@ -17,23 +17,10 @@ from animator.animator import Animator, VideoAnimator, Keypoint3DAnimator
 
 # is a GUI for manual labeling of 3D keypoints in multiple cameras.
 class Label3D(Animator):
-    def __init__(self, camParams=None, videos=None, skeleton=None, file=None, *args, **kwargs) -> None:
-        """
-        inherited from Animator, as a QWidget
-        build from scratch:
-            camParams: camera parameters for all cameras, stored in a mat file
-                stored in a dataclass CameraParams
-
-            videos: list of videos paths, the order means the views order
-                
-            skeleton: structure with three fields: 
-                color:
-                joints_idx:
-                joint_names:   # stored in a json file
-
-        
-        """
+    def __init__(self, camParams=None, videos=None, skeleton_path=None, loader=None, *args, **kwargs) -> None:
         super().__init__()  
+        
+
         # properties private
         self._origNFrames = 0
         self._initialMarkers = None
@@ -91,7 +78,7 @@ class Label3D(Animator):
         self.DragPointColor = [1, 1, 1]     # passed to DraggableKeypoint2DAnimator constructor
         self.visibleDragPoints = True       # passed to DraggableKeypoint2DAnimator constructor
 
-        self._init_from_scratch(camParams, videos, skeleton, *args, **kwargs)
+        # self._init_from_scratch(camParams, videos, skeleton, *args, **kwargs)
 
     # constructors
     def _init_from_scratch(self, camParams, videos, skeleton, *args, **kwargs):
@@ -368,3 +355,20 @@ def triangulateMultiview(pointTrack, cameraPoses, intrinsics):
 
     xyzPoints = []
     return xyzPoints
+
+
+# an event filter
+class KeyPressEater(QObject):
+    def __init__(self, widgets):
+        super().__init__()
+        self.widgets = widgets
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.KeyPress:
+            for widget in self.widgets:
+                # widget.keyPressEvent(event)       # 直接调用keyPressEvent方法
+                if widget != obj:
+                    QCoreApplication.sendEvent(widget, QKeyEvent(QEvent.KeyPress, event.key(), event.modifiers(), event.text(), event.isAutoRepeat(), event.count()))
+                    # sendEvent vs postEvent
+            return True
+        return False

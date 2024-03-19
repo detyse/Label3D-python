@@ -7,7 +7,8 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 
 class Animator(QWidget):        # not sure if this should be a QWidget, more like a QObject.  (also QAbstractAnimation and QGraphicView)
-    '''
+    # 作为父类 提供所有views 和 label3d 的共有属性和方法 mainly related with frame
+    '''                       
     Abstract superclass for data animation
     不一定用于播放视频 所以没有视频相关的设置 / 但是设置 QGraphicsView 和 QGraphicsScene 用于显示
     
@@ -84,19 +85,6 @@ class Animator(QWidget):        # not sure if this should be a QWidget, more lik
         # abstract function
         print("update function need implement in subclass")
 
-    ## set/get methods
-    def setFrame(self, frame):
-        self.frame = frame
-
-    def getFrame(self, ):
-        return self.frame
-
-    # restrict the range of frames, as a method for new frames fitting
-    def restrict(self, newFrames):
-        self.frameInd = np.arange(newFrames)
-        self.nFrames = newFrames
-        self.frame = 1
-
     ## event handle
     def keyPressEvent(self, event):
         key_to_scope = {
@@ -113,6 +101,7 @@ class Animator(QWidget):        # not sure if this should be a QWidget, more lik
         }
         if event.key() == Qt.Key_Right:
             self.frameInd += self.frameRate
+            print("right pressed ???")
         elif event.key() == Qt.Key_Left:
             self.frameInd -= self.frameRate
         elif event.key() == Qt.Key_Up:
@@ -122,45 +111,59 @@ class Animator(QWidget):        # not sure if this should be a QWidget, more lik
 
         elif event.key() in key_to_scope:
             self.scope = key_to_scope[event.key()]
+
+        elif event.key() == Qt.Key_S:
+            print("此父非彼父！")
+
+
+
+    # # 多窗口事件同步实，只同步按键事件 for frame change
+    # # use event filter to handle the key press event, instead of linkall
+    # @staticmethod
+    # def linkAll(animatorList):       # animators is a list or tuple of animators
+    #     '''link all the animators'''
+    #     for animator in animatorList:
+    #         print(type(animator))
+    #         animator.links = animatorList
         
+    #     # 假设所有Animator共享一个父窗口，在父窗口中设置键盘事件处理
+    #     # 将所有的animator的keyPressEvent都设置为父窗口的keyPressEvent
+    #     parent = animatorList[0] 
+    #     print(parent.__class__)
+    #     if parent:
+    #         parent.keyPressEvent = lambda event: Animator.propagateEvent(animatorList, event)      # 这里的event是父窗口的event
+    #     # 理论上 runAll 的参数为 animator.links 也可以
+    
+    # @staticmethod
+    # def propagateEvent(animatorList, event):
+    #     for animator in animatorList:
+    #         if not hasattr(event, 'handled') or not event.handled:
+    #             # mark the event as handled
+    #             event.handled = True
+    #             animator.keyPressEvent(event)
 
-    def checkVisible(self, ):
-        # check the current frame is visible in the isVisible vector
-        # 略
-        pass
-
-    @staticmethod
-    def linkAll(animatorList):       # animators is a list or tuple of animators
-        '''link all the animators'''
-        for animator in animatorList:
-            animator.links = animatorList
-        
-        # 假设所有Animator共享一个父窗口，在父窗口中设置键盘事件处理
-        # 将所有的animator的keyPressEvent都设置为父窗口的keyPressEvent
-        parent = animatorList[0].parent()
-        if parent:
-            parent.keyPressEvent = lambda event: [animator.runAll(animatorList, event) for animator in animatorList]
-        # 理论上 runAll 的参数为 animator.links 也可以
-
-    # 只同步按键事件
-    @staticmethod
-    def runAll(animatorList, event):      # synchronize the KeyPressEvent of all animators
-        '''run all the animators'''
-        for animator in animatorList:
-            animator.keyPressEvent(event)
+    # # 只同步按键事件
+    # @staticmethod
+    # def runAll(animatorList, event):      # synchronize the KeyPressEvent of all animators
+    #     '''run all the animators'''
+    #     for animator in animatorList:
+    #         animator.keyPressEvent(event)
     
     
 class VideoAnimator(Animator):
     '''
-    interactive movie
+    interactive movie show videos and 2d keypoints
     VideoAnimator Properties:
         V - 4D (i, j, channel, N) movie to animate
         img - Handle to the imshow object
 
     VideoAnimator Methods:
 
+
+    note: the index used in properties are all start from 0, used in functions are start from 1
+    note: all the marker state should be 
     '''
-    def __init__(self, video_path, skeleton, view, scene):
+    def __init__(self, video_path, skeleton):
         super().__init__()
 
         # properties for video
@@ -171,21 +174,30 @@ class VideoAnimator(Animator):
         # self._init_property()
 
         # properties for 2d keypoint animator
-        self._skeletion = skeleton
-        self._joint_names = self._skeletion.joint_names
-        self._joints_idx = self._skeletion.joints_idx
-        self._color = self._skeletion.color
+        # self._skeletion = skeleton
+        self._joint_names = skeleton["joint_names"]
+        self._joints_idx = skeleton["joints_idx"]
+        self._color = skeleton["color"]
         self.joints_num = len(self._joint_names)
         # on this frame
         self.current_joint_idx = None       # use index is more convenient, although a little. start from 0
-        self.exist_markers = []             # also use index better
+        self.exist_markers = []             # also use index better, 
         self.joints2markers = {}
         # markers on all the frames
         
         self._init_property()      # self.frames_markers
 
-        self.initUI()
-        self.update()
+        self.initUI()       # get the view and scene
+        self.update()       # update the scene
+        self.initView()     # view setting should be after the scene
+
+        # constant for item data saving
+        self.data_joint_name = 0
+        self.data_joint_index = 1
+        self.data_lines = 2
+
+        # trivial properties
+        self.marker_size = 10
 
 
     def _init_property(self, ):
@@ -200,15 +212,17 @@ class VideoAnimator(Animator):
     def initUI(self, ):
         super().initUI()        # get self.view and self.scene
 
+
+    def initView(self, ):
         layout = QVBoxLayout()
 
         self.view.setMouseTracking(True)
         self.view.setDragMode(QGraphicsView.ScrollHandDrag)
 
-        vscroll = self.view.verticalScrollBar()
-        hscroll = self.view.horizontalScrollBar()
-        vscroll.setSingleStep(0)
-        hscroll.setSingleStep(0)
+        # vscroll = self.view.verticalScrollBar()
+        # hscroll = self.view.horizontalScrollBar()
+        # vscroll.setSingleStep(0)
+        # hscroll.setSingleStep(0)      # not work
 
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -218,13 +232,12 @@ class VideoAnimator(Animator):
         self.view.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.view.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
 
-        self.view.scrollContentsBy(0, 0)
-
-        self.scaleFactor = 1.0
+        # self.view.scrollContentsBy(0, 0)      # not work
 
         layout.addWidget(self.view)
         self.setLayout(layout)      # set the layout for widget show, otherwise the view will not show
-
+        
+        # self.view.show()
 
     def read_video(self, video_path=None):
         # suitable for *.mp4 and *.avi
@@ -243,9 +256,10 @@ class VideoAnimator(Animator):
 
 
     # update the renderer for frame change
-    def update_frame(self, frame_ind):
+    def update(self, frame_ind=None):
         # super().update()
-        self.frame = frame_ind
+        if frame_ind is not None:
+            self.frame = frame_ind
 
         current_frame = self.frames[self.frame]
         height, width, channels = current_frame.shape
@@ -254,38 +268,47 @@ class VideoAnimator(Animator):
 
         pixmap = QPixmap.fromImage(q_image)
         
-        self.scene.clear()
+        # self.scene.clear()
         self.scene.addPixmap(pixmap)
 
         # plot the markers and lines, replot all the 
         for i in range(self.joints_num):
             if not np.isnan(self.frames_markers[self.frame, i]).all():
                 pos = self.frames_markers[self.frame, i]
-                self.create_drag_points_and_lines(pos, i)
+                self.create_drag_point_and_lines(pos, i)
                 # should work here
 
         self.scene.update()
-        # self.view.show()
-
+        # self.view.update()
+        # self.view.show()      # TODO: check whether influence the showing
+            # could not use view.show(), will create a new window
 
     def reset(self, ):      # not use for now
         # set the frame to 0, in the nFrames range
         self.restrict(0, self.frames.shape[0])
 
 
-    def create_drag_points_and_lines(self, pos, joint_idx=None, ):       # draw the points and lines, also reuse for frame change
+    def create_drag_point_and_lines(self, pos, joint_idx=None, ):       # draw the points and lines, also reuse for frame change
         if joint_idx is None:
-            current_index = self.current_joint_idx + 1                  # "+1" to meet the matlab index
-            current_joint = self.joint_names[self.current_joint_idx]       
+            if self.current_joint_idx is not None:
+                current_index = self.current_joint_idx + 1                  # "+1" to meet the matlab index
+                current_joint = self._joint_names[self.current_joint_idx]       
         else:
             current_index = joint_idx + 1
-            current_joint = self.joint_names[joint_idx]
+            current_joint = self._joint_names[joint_idx]
 
         # draw the point 
+        print("drawing a point")    
+        
         the_point = QGraphicsEllipseItem(pos[0], pos[1], self.marker_size, self.marker_size)
-        the_point.setData("joint name", current_joint)
-        the_point.setData("joint index", current_index)
-        the_point.setData("lines", [])
+        
+        brush = QBrush(Qt.red)
+        brush.setStyle(Qt.SolidPattern)
+
+        the_point.setBrush(brush)
+        the_point.setData(self.data_joint_name, current_joint)
+        the_point.setData(self.data_joint_index, current_index)
+        the_point.setData(self.data_lines, [])
         self.scene.addItem(the_point)
 
         self.frames_markers[self.frame, current_index-1] = pos      # checked the code is legal
@@ -299,101 +322,110 @@ class VideoAnimator(Animator):
                     marker = self.joints2markers[self._joint_names[j]]
                     # draw the line
                     the_line = Connection(the_point, marker, the_color)
-                    the_point.data("lines").append(the_line)
+                    the_point.data(self.data_lines).append(the_line)
                     self.scene.addItem(the_line)
 
             elif current_index == j:
                 if self._joint_names[i] in self.exist_markers:
                     marker = self.joints2markers[self._joint_names[i]]
                     the_line = Connection(marker, the_point, the_color)
-                    the_point.data("lines").append(the_line)
+                    the_point.data(self.data_lines).append(the_line)
                     self.scene.addItem(the_line)
-            else:
-                return
+
+        return the_point
+
+    # change the current joint, from parent class
+    def joint_change(self, joint_idx):
+        self.current_joint_idx = joint_idx
+        self.current_joint = self._joint_names[joint_idx]
+
+        return joint_idx     # return to sync the current joint index
+
+
+    def reset_marker(self, item, pos):
+        item.setPos(pos)
+
+        for line in item.data(self.data_lines):
+            line.updateLine(item)
+        
+        self.scene.update()     # do we need this? 
 
 
     def delete_the_point(self, item: QGraphicsItem):
-        joint_name = item.data("joint name")
-        joint_index = item.data("joint index")
+        joint_name = item.data(self.data_joint_name)
+        joint_index = item.data(self.data_joint_index)
         self.scene.removeItem(item)
-        self.markers.remove()       # remove the marker from the list of points, used for replot
         self.frames_markers[self.frame, joint_index-1] = np.nan
-        self.exist_markers.remove(joint_name)
+        self.exist_markers.remove(joint_index-1)
 
-        lines = item.data("lines")
+        lines = item.data(self.data_lines)
         for line in lines:
             self.scene.removeItem(line)
 
         self.scene.update()
 
+
     # GUI interaction
     def keyPressEvent(self, event):     # override the keyPressEvent, mainly for frame control
-        # inherit the parent class's keyPressEvent
         super().keyPressEvent(event)
-
+        
+        # inherit the parent class's keyPressEvent
         # add some new key press event
         if event.key() == Qt.Key_S:
             # print current frame and rate
             print("show some information")
+            event.ignore()
         elif event.key() == Qt.Key_R:
             self.reset()
         elif event.key() == Qt.Key_H:
             # print help information
             print("show help information")
 
+
         # update the renderer
-        self.update()
+        # self.update()
+        
+        # super().keyPressEvent(event)
+
+        # pass the event to the parent widget
+
 
 
     # 滚轮事件 实现 图片放大缩小
     def wheelEvent(self, event):     # override the wheelEvent
-        # if len(self.scene().items()) == 0:
-        #     return
-        
-        # curPoint = event.position()
-        # scenePoint = self.view.mapToScene(curPoint)
-
-        # viewWidth = self.view.viewport().width()
-        # viewHeight = self.view.viewport().height()
-
-        # hScale = 
-        # do not inherit the parent class's wheelEvent
         if event.angleDelta().y() > 0:
             self.view.scale(1.1, 1.1)
         else:
             self.view.scale(0.9, 0.9)
 
-        # remove the scroll
-        # pass 
+        # the problem is that the scroll will still be triggered, so we need to stop the event
 
-    # def myWheelEvent(self, event: QWheelEvent):
-    #     if event.angleDelta().y() > 0:
-    #         self.view.scale(1.1, 1.1)
-    #     else:
-    #         self.view.scale(0.9, 0.9)
+    def mousePressEvent(self, event):       # override the mousePressEvent
+        # plot the current joint        
+        if event.buttons() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
+            # 如果当前节点已经存在，则重置位置。不存在则新建一个
+            if self.current_joint_idx in self.exist_markers:
+                # reset the marker position
+                self.reset_marker(self.joints2markers[self._joint_names(self.current_joint_idx)], event.scenepos())       # TODO: check the scenePos
 
-    # # 鼠标拖拽事件 实现 图片移动
-    # def mouseMoveEvent(self, event: QMouseEvent):       # override the mouseMoveEvent
-    #     # with ctrl key, move the image
-    #     if event.buttons() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
-    #         self.view.translate(event.pos() - self.lastPos)
-    #         self.lastPos = event.pos()
-    #         # self.update()
-    
-    # # 鼠标点击事件 返回 图片的坐标
-    # def mousePressEvent(self, event: QMouseEvent):       # override the mousePressEvent
-    #     if event.buttons() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
-    #         self.lastPos = event.pos()
-    #     elif event.buttons() == Qt.RightButton:
-    #         print(self.view.mapToScene(event.pos()))
+            else: 
+                if self.current_joint_idx is not None:
+                    marker = self.create_drag_point_and_lines((self.view.mapToScene(event.pos()).x(), self.view.mapToScene(event.pos()).y()))
+                    self.exist_markers.append(self.current_joint_idx)
+                    self.joints2markers[self._joint_names(self.current_joint_idx)] = marker
 
-    def KeepAspectRatio(self, ):
-        # keep the aspect ratio of the image, fit the frame size
-        pass
+
+        elif event.buttons() == Qt.LeftButton:      # 点选 joint marker
+            print(self.view.mapToScene(event.pos()))
+            item = self.scene.itemAt(self.view.mapToScene(event.pos()), self.view.viewportTransform())       # to scene position
+            if isinstance(item, QGraphicsEllipseItem):
+                self.joint_change(item.data(self.data_joint_index)-1)       # "-1" to meet the python index
 
 
 
 
+
+# 这个可以有
 class Keypoint3DAnimator(Animator):
     def __init__(self, ):
         super().__init__()
@@ -401,146 +433,6 @@ class Keypoint3DAnimator(Animator):
         self.frame = 1
         self.frameRate = 1
 
-
-class DraggableKeypoint2DAnimator(Animator):
-    '''
-    the points and lines on video
-    '''
-    def __init__(self, skeleton, view, scene):
-        '''
-        view and scene from corresponding QGraphicsView and QGraphicsScene of 
-        VideoAnimator, share the same window
-        add QGraphicsItem for points and lines to the scene
-        '''
-        super().__init__()
-        self.lim = 1
-        self.frame = 1
-        self.frameRate = 1
-        
-        # defualt properties to point
-        self.marker_size = 20
-        self.line_width = 5
-        self.drug_point_color = [255, 0, 0]
-        
-        # properties for GUI
-        self.view = view
-        self.scene = scene
-
-
-        # non changeable properties 
-        self._skeleton = skeleton 
-        self._joint_names = self._skeleton.joint_names
-        self._joints_idx = self._skeleton.joints_idx
-        self._color = self._skeleton.color
-
-        # properties for joints
-        self.current_joint = None       # it will change by some signal, out of the animator
-        self.exist_markers = []     # list of joint names, the exist markers
-        # self.joint_names2indexs = {}     # joint name to index # just use the list index + 1
-        self.joints2markers = {}        # dict of joint name to markers
-
-
-    def create_drag_points_and_lines(self, pos):       # draw the points and lines
-        # create points, 
-        # the color and links depends on the current joint, 
-        # if there is a point at the joint, draw a point
-        # and lines between the points
-        # the position could get from the event of mouse press
-        skeleton = self._skeleton 
-        
-        current_joint = self.current_joint_index
-        current_index = self.joint_names.index(current_joint) + 1
-
-        # draw the point 
-        the_point = QGraphicsEllipseItem(pos[0], pos[1], self.marker_size, self.marker_size)
-        the_point.setData("joint name", current_joint)
-        the_point.setData("joint index", current_index)
-        the_point.setData("lines", []) 
-        self.scene.addItem(the_point)
-
-        # draw the line, need current joints plot: self.markers 
-        for index, (i, j) in enumerate(self._joints_idx):
-            the_color = self._color[index]      # maybe need some transform to fit the qt format
-            if current_index == i:
-                # and next point exist, next point is the other joint
-                if self._joint_names[j] in self.exist_markers:
-                    marker = self.joints2markers[self._joint_names[j]]
-                    # draw the line
-                    the_line = Connection(the_point, marker, the_color)
-                    the_point.data("lines").append(the_line)
-                    self.scene.addItem(the_line)
-
-            elif current_index == j:
-                if self._joint_names[i] in self.exist_markers:
-                    marker = self.joints2markers[self._joint_names[i]]
-                    the_line = Connection(marker, the_point, the_color)
-                    the_point.data("lines").append(the_line)
-                    self.scene.addItem(the_line)
-            else:
-                return
-
-    def delete_the_point(self, item: QGraphicsItem):
-        # the QGraphicsItem could be deleted by the item and also delete the lines 
-        # get the item joint
-        
-        joint_name = item.data("joint name")
-        joint_index = item.data("joint index")
-        self.scene.removeItem(item)
-        self.markers.remove(joint_name)
-
-        # the lines could be deleted by the item
-        lines = item.data("lines")
-        for line in lines:
-            self.scene.removeItem(line)
-
-        # also change the self.markers state(exist or not)
-
-        
-
-    # drugging the points, the events happen on the QGraphicsScene level
-    def mousePressEvent(self, event: QMouseEvent):
-        # get the current joint, like no need, because the current joint could get in the draw function
-        if event.buttons() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
-
-            self.current_marker(event.pos())
-            # if the point is in the current joint, then drag it
-            # if not, do nothing
-            pass
-
-        # get the item at the mouse cursor position
-        item = self.scene.itemAt(event.pos())       # to scene position
-        if item and event.modifiers() == Qt.ControlModifier:
-            self.delete_the_point(item)
-        
-        # and draggable 
-        pass
-
-    def mouseMoveEvent(self, event):
-        item = self.scene.itemAt(event.scenePos())      # check 
-        for line in item.data("lines"):
-            line.updateLine(item)
-
-        super().mouseMoveEvent(event)
-
-    # do i need this function? test it
-    def mouseReleaseEvent(self, event):
-        # reset the marker position
-
-        pass 
-
-    # used for dragging the points, do not need to be draggable
-    def reset_marker(self, item, pos):
-        # reset the marker position
-        item.setPos(pos)        
-        
-
-class HeatMapAnimator(Animator):
-    def __init__(self, ):
-        super().__init__()
-        self.lim = 1
-        self.frame = 1
-        self.frameRate = 1
-    
 
 # helper class
 class Connection(QGraphicsLineItem):
@@ -559,9 +451,9 @@ class Connection(QGraphicsLineItem):
 
     def updateLine(self, source):       # 
         if source == self.start_point:
-            self._line.setP1(source.scenePos())
+            self._line.setP1(source.scenepos())
         elif source == self.end_point:
-            self._line.setP2(source.scenePos())
+            self._line.setP2(source.scenepos())
         else:
             raise ValueError("source should be the start or end point")
         self.setLine(self._line)
