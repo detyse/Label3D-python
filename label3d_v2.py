@@ -159,13 +159,14 @@ class Label3D(Animator):
         
         # previous frame, temporarily use the key D, will use the arrow Left key later
         elif event.key() == Qt.Key_D:
-            if self.frame > 0:
+            if self.frame > self.frameRate:
                 self.frame -= self.frameRate
             else: self.frame = 0
             self.update_frame()
         
         # switch joint
         elif event.key() == Qt.Key_Tab:
+            print("tab is pressed")
             if self.current_joint_idx is None:
                 self.update_joint(0)
             elif self.current_joint_idx < len(self._joint_names) - 1:
@@ -175,13 +176,14 @@ class Label3D(Animator):
         
         # triangulate the 3D joint
         elif event.key() == Qt.Key_T:
-            self.triangulate_joints()
-            # reproject the 3D joint to the views
-            self.reproject_joints()
+            if self.triangulate_joints():
+                # reproject the 3D joint to the views
+                self.reproject_joints()
 
         
     ## methods to update the states of the GUI
     def update_joint(self, input=None):
+        print("update joint")
         if input is None:
             self.current_joint_idx = None
             self.current_joint = None
@@ -212,7 +214,7 @@ class Label3D(Animator):
     def triangulate_joints(self, ):         # triangulate the current frame current joint 2D points
         if self.current_joint is None:
             print("Please select a joint first")
-            return
+            return False
         
         frame_view_markers = np.full((self.view_num, 2), np.nan)
         for i, animator in enumerate(self.video_animators):
@@ -223,7 +225,7 @@ class Label3D(Animator):
         # at least two views to triangulate
         if np.sum(view_available) < 2:
             print("At least two views are needed to triangulate")
-            return
+            return False
         
         # triangulate the 3D joint
         points2d = frame_view_markers[view_available, :]
@@ -235,6 +237,8 @@ class Label3D(Animator):
 
         point_3d = triangulateMultiview(points2d, r, t, K, RDist, TDist)
         self.joints3d[self.frame, self.current_joint_idx] = point_3d
+
+        return True
 
     def reproject_joints(self, ):
         if self.current_joint is None:

@@ -205,7 +205,7 @@ class VideoAnimator(Animator):
         marker = QGraphicsEllipseItem(int(-self.marker_size), int(-self.marker_size), self.marker_size, self.marker_size)
         marker.setPos(pos[0], pos[1])
 
-        brush = QBrush(color2QColor(self._color[self.f_current_joint_idx+2]))
+        brush = QBrush(color2QColor(self._color[current_index+1]))
         brush.setStyle(Qt.SolidPattern)
 
         marker.setBrush(brush)
@@ -245,7 +245,7 @@ class VideoAnimator(Animator):
                     j_lines = marker.data(self.d_lines)
                     j_lines.append(the_line)
                     marker.setData(self.d_lines, j_lines)
-                    
+
                     self.scene.addItem(the_line)
 
         # update the exist markers
@@ -263,11 +263,8 @@ class VideoAnimator(Animator):
 
         for line in item.data(self.d_lines):
             # reset lines
-            print("update line with reset")
             line.updateLine(item)
         
-        print("reset marker, after update lines")
-
         # self.f_joints2markers[item.data(self.d_joint_index)] = item
         self.frames_markers[self.frame, self.f_current_joint_idx] = new_pos
 
