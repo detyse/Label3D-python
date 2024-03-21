@@ -321,9 +321,6 @@ def rotationMatrixToVector(R):
 
 
 
-class pointTrack():
-    def __init__(self, ):
-        pass 
 
 
 # the triangulate function
@@ -356,19 +353,3 @@ def triangulateMultiview(pointTrack, cameraPoses, intrinsics):
     xyzPoints = []
     return xyzPoints
 
-
-# an event filter
-class KeyPressEater(QObject):
-    def __init__(self, widgets):
-        super().__init__()
-        self.widgets = widgets
-
-    def eventFilter(self, obj, event):
-        if event.type() == QEvent.KeyPress:
-            for widget in self.widgets:
-                # widget.keyPressEvent(event)       # 直接调用keyPressEvent方法
-                if widget != obj:
-                    QCoreApplication.sendEvent(widget, QKeyEvent(QEvent.KeyPress, event.key(), event.modifiers(), event.text(), event.isAutoRepeat(), event.count()))
-                    # sendEvent vs postEvent
-            return True
-        return False

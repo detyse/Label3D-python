@@ -112,8 +112,8 @@ class Animator(QWidget):        # not sure if this should be a QWidget, more lik
         elif event.key() in key_to_scope:
             self.scope = key_to_scope[event.key()]
 
-        elif event.key() == Qt.Key_S:
-            print("此父非彼父！")
+        # elif event.key() == Qt.Key_S:
+        #     print("此父非彼父！")
 
 
 
@@ -169,7 +169,7 @@ class VideoAnimator(Animator):
         # properties for video
         self.video_path = video_path        # the path of the video
         self.frames = self.read_video()
-        self.image = self.frames[self.frame]      # Represents the current frame
+        # self.image = self.frames[self.frame]      # Represents the current frame
         # update the property about frames
         # self._init_property()
 
@@ -182,13 +182,13 @@ class VideoAnimator(Animator):
         # on this frame
         self.current_joint_idx = None       # use index is more convenient, although a little. start from 0
         self.exist_markers = []             # also use index better, 
-        self.joints2markers = {}
+        self.joints2markers = {}            # 统一用 index 
         # markers on all the frames
         
         self._init_property()      # self.frames_markers
 
         self.initUI()       # get the view and scene
-        self.update()       # update the scene
+        self.frame_update()       # update the scene
         self.initView()     # view setting should be after the scene
 
         # constant for item data saving
@@ -254,12 +254,47 @@ class VideoAnimator(Animator):
         cap.release()
         return frames
 
+    def update_joint(self, joint_idx):
+        self.current_joint_idx = joint_idx
+
+    # return the current frame, current marker position
+    def get_marker_2d(self, frame=None, joint_idx=None):
+        if frame is None:
+            frame = self.frame
+        if joint_idx is None:
+            joint_idx = self.current_joint_idx
+        return self.frames_markers[frame, joint_idx]
+    
+    # set the marker position, if it is not exist, create a new marker
+    def set_marker_2d(self, pos, frame=None, joint_idx=None):
+        if frame is None:
+            frame = self.frame
+        if joint_idx is None:
+            joint_idx = self.current_joint_idx
+        self.frames_markers[frame, joint_idx] = pos
+
+
+        if joint_idx in self.exist_markers:
+            self.reset_marker(self.joints2markers[joint_idx], pos)
+        else:
+            self.create_drag_point_and_lines(pos, joint_idx)
+
 
     # update the renderer for frame change
-    def update(self, frame_ind=None):
+    def frame_update(self, frame_ind=None):
+        # print("frame update is called")
+
         # super().update()
+        self.scene.clear()
+
         if frame_ind is not None:
             self.frame = frame_ind
+
+        # print(self.frame)
+        
+        # update the property with frame change
+        self.exist_markers = np.where(~np.isnan(self.frames_markers[self.frame, :, 0]))[0].tolist()
+        self.joints2markers = {}           # the marker object will not stored, but replot when frame change
 
         current_frame = self.frames[self.frame]
         height, width, channels = current_frame.shape
@@ -287,8 +322,10 @@ class VideoAnimator(Animator):
         # set the frame to 0, in the nFrames range
         self.restrict(0, self.frames.shape[0])
 
-
+    # when mouse press, if the marker is not exist, create a new marker
     def create_drag_point_and_lines(self, pos, joint_idx=None, ):       # draw the points and lines, also reuse for frame change
+        # the point draw function should receive the joint from the Label3D
+        
         if joint_idx is None:
             if self.current_joint_idx is not None:
                 current_index = self.current_joint_idx + 1                  # "+1" to meet the matlab index
@@ -298,55 +335,85 @@ class VideoAnimator(Animator):
             current_joint = self._joint_names[joint_idx]
 
         # draw the point 
-        print("drawing a point")    
-        
-        the_point = QGraphicsEllipseItem(pos[0], pos[1], self.marker_size, self.marker_size)
-        
+        # print("current point", current_index)    
+
+        the_point = QGraphicsEllipseItem(int(-self.marker_size/2), int(-self.marker_size/2), self.marker_size, self.marker_size)        # could not set the self.scene as the parent
+        the_point.setX(pos[0])
+        the_point.setY(pos[1])
+        # the_point.setFlags(QGraphicsItem.ItemSendsScenePositionChanges)       # ignore if do not need to drag
+
         brush = QBrush(Qt.red)
         brush.setStyle(Qt.SolidPattern)
 
         the_point.setBrush(brush)
         the_point.setData(self.data_joint_name, current_joint)
-        the_point.setData(self.data_joint_index, current_index)
+        the_point.setData(self.data_joint_index, current_index)     # store the joint index, start from 1
         the_point.setData(self.data_lines, [])
         self.scene.addItem(the_point)
 
         self.frames_markers[self.frame, current_index-1] = pos      # checked the code is legal
-        
+
+        self.joints2markers[self.current_joint_idx] = the_point
+
         # draw the line, need current joints plot: self.markers
         for index, (i, j) in enumerate(self._joints_idx):
             the_color = self._color[index]      # maybe need some transform to fit the qt format
             if current_index == i:
+                # print("current index is i", i)
                 # and next point exist, next point is the other joint
-                if self._joint_names[j] in self.exist_markers:
-                    marker = self.joints2markers[self._joint_names[j]]
+                if j-1 in self.exist_markers:
+                    marker = self.joints2markers[j-1]
                     # draw the line
                     the_line = Connection(the_point, marker, the_color)
                     the_point.data(self.data_lines).append(the_line)
                     self.scene.addItem(the_line)
+                    # print("draw a line")
 
             elif current_index == j:
-                if self._joint_names[i] in self.exist_markers:
-                    marker = self.joints2markers[self._joint_names[i]]
+                if i-1 in self.exist_markers:
+                    marker = self.joints2markers[i-1]
                     the_line = Connection(marker, the_point, the_color)
                     the_point.data(self.data_lines).append(the_line)
                     self.scene.addItem(the_line)
+                    # print("also draw a line")
 
-        return the_point
+        self.exist_markers.append(current_index-1)
+        # return the_point
 
-    # change the current joint, from parent class
+    # if the marker exist, reset the marker position
+    # d
+
+    # change the current joint, from parent class, the label3d should call this function when the joint changes
     def joint_change(self, joint_idx):
         self.current_joint_idx = joint_idx
-        self.current_joint = self._joint_names[joint_idx]
 
         return joint_idx     # return to sync the current joint index
 
+    def set_joint(self, joint_idx):
+        self.current_joint_idx = joint_idx
 
-    def reset_marker(self, item, pos):
-        item.setPos(pos)
+    def receive_reprojection(self, reprojection_point, joint_idx="no need"):    
+        # the joint index should be aligned with the label3d,
+        # so as frame index, *add sync check once the frame and joint change
+        # if the joint exist, reset the marker position
+        if joint_idx in self.exist_markers:
+            self.reset_marker(self.joints2markers[joint_idx], reprojection_point)
+        else:
+            self.create_drag_point_and_lines(reprojection_point, joint_idx)
+
+
+    # this function will be called when reprojection
+    # if the marker exist, reset the marker position
+    def reset_marker(self, item, new_pos):
+        item.setPos(new_pos)
 
         for line in item.data(self.data_lines):
             line.updateLine(item)
+        # 
+        
+        self.joints2markers[item.data(self.data_joint_index)] = item
+        # also update the frames_markers
+        self.frames_markers[self.frame, self.current_joint_idx] = new_pos
         
         self.scene.update()     # do we need this? 
 
@@ -373,22 +440,21 @@ class VideoAnimator(Animator):
         # add some new key press event
         if event.key() == Qt.Key_S:
             # print current frame and rate
-            print("show some information")
+            # print("show some information")
             event.ignore()
-        elif event.key() == Qt.Key_R:
-            self.reset()
-        elif event.key() == Qt.Key_H:
+
+        elif event.key() == Qt.Key_F:
+            event.ignore()
+
+        elif event.key() == Qt.Key_B:
+            event.ignore()
+
+
+        # elif event.key() == Qt.Key_R:
+        #     self.reset()
+        # elif event.key() == Qt.Key_H:
             # print help information
-            print("show help information")
-
-
-        # update the renderer
-        # self.update()
-        
-        # super().keyPressEvent(event)
-
-        # pass the event to the parent widget
-
+            # print("show help information")
 
 
     # 滚轮事件 实现 图片放大缩小
@@ -406,23 +472,20 @@ class VideoAnimator(Animator):
             # 如果当前节点已经存在，则重置位置。不存在则新建一个
             if self.current_joint_idx in self.exist_markers:
                 # reset the marker position
-                self.reset_marker(self.joints2markers[self._joint_names(self.current_joint_idx)], event.scenepos())       # TODO: check the scenePos
+                self.reset_marker(self.joints2markers[self.current_joint_idx], (self.view.mapToScene(event.pos()).x(), self.view.mapToScene(event.pos()).y()))       # TODO: check the scenePos
 
             else: 
                 if self.current_joint_idx is not None:
-                    marker = self.create_drag_point_and_lines((self.view.mapToScene(event.pos()).x(), self.view.mapToScene(event.pos()).y()))
-                    self.exist_markers.append(self.current_joint_idx)
-                    self.joints2markers[self._joint_names(self.current_joint_idx)] = marker
+                    self.create_drag_point_and_lines((self.view.mapToScene(event.pos()).x(), self.view.mapToScene(event.pos()).y()))
+                    # self.exist_markers.append(self.current_joint_idx)
+                    # self.joints2markers[self._joint_names[self.current_joint_idx]] = marker
 
 
-        elif event.buttons() == Qt.LeftButton:      # 点选 joint marker
-            print(self.view.mapToScene(event.pos()))
-            item = self.scene.itemAt(self.view.mapToScene(event.pos()), self.view.viewportTransform())       # to scene position
-            if isinstance(item, QGraphicsEllipseItem):
-                self.joint_change(item.data(self.data_joint_index)-1)       # "-1" to meet the python index
-
-
-
+        # elif event.buttons() == Qt.LeftButton:      # 点选 joint marker,  暂时不用该功能
+        #     print(self.view.mapToScene(event.pos()))
+        #     item = self.scene.itemAt(self.view.mapToScene(event.pos()), self.view.viewportTransform())       # to scene position
+        #     if isinstance(item, QGraphicsEllipseItem):
+        #         self.joint_change(item.data(self.data_joint_index)-1)       # "-1" to meet the python index
 
 
 # 这个可以有
@@ -440,22 +503,25 @@ class Connection(QGraphicsLineItem):
         super().__init__()
         self.start_point = start_point
         self.end_point = end_point
-
-        # some defualt properties
-        self.setSelected(False)
-        self.setPen(QPen(color, 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-        # ...
+        # print("line points", start_point.scenePos(), end_point.scenePos())
 
         self._line = QLineF(start_point.scenePos(), end_point.scenePos())
         self.setLine(self._line)
 
+        # some defualt properties
+        self.setSelected(False)
+        
+        the_color = QColor(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255))
+        self.setPen(QPen(the_color, 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        # ...
+
     def updateLine(self, source):       # 
         if source == self.start_point:
-            self._line.setP1(source.scenepos())
+            self._line.setP1(source.scenePos())
         elif source == self.end_point:
-            self._line.setP2(source.scenepos())
+            self._line.setP2(source.scenePos())
         else:
             raise ValueError("source should be the start or end point")
         self.setLine(self._line)
 
-        
+

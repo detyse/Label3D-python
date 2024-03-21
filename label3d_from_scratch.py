@@ -36,39 +36,34 @@ class Label3D(Animator):
             self.skeleton = read_json_skeleton(skeleton_path)
         assert len(self.camParams) == len(self.videos), "The number of cameras and videos must be the same"
         
-        # 衍生属性，extended properties from inputs
-        # self.cams_num = len(self.camParams)
-        # self.skeletons_in_idx = self.get_skeletons_in_idx(self.skeletons)
-
-        # 
-        # self._skeleton = self.skeleton
-
-        # self.install_event_filters()
-
-
         self._init_property()
 
         self.initGUI()
 
-       
-        # eater = KeyPressEater()
-        # self.installEventFilter(eater)
-        # self.install_event_filters()
+        self.align_animators()
+
+        self.unpack_camParams()
+
+
+    def unpack_camParams(self, ):
+        r = []
+        t = []
+        K = []
+        RDist = []
+        TDist = []
+        for cam in self.camParams:
+            r.append(cam["r"][0][0])                # shape: (3, 3), rotation matrix
+            t.append(cam["t"][0][0])                # shape: (1, 3), translation vector
+            K.append(cam["K"][0][0].T)              # shape: (3, 3), intrinsic matrix, need to transpose to fit the shape
+            RDist.append(cam["RDistort"][0][0])     # shape: (1, 3), corresponding to k1, k2, k3
+            TDist.append(cam["TDistort"][0][0])     # shape: (1, 2), corresponding to p1, p2
         
-
-        # self.installEventFilter(KeyPressEater([self, *self.video_animators]))
-
-    # def eventFilter(self, obj, event):
-    #     print(f"get event in event filter {obj}")
-    #     if event.type() == QEvent.KeyPress:
-    #         print(f"key {event.key()} is pressed in event filter")
-    #         for widget in self.widgets:
-    #             if widget != obj: 
-    #                 QCoreApplication.sendEvent(widget, QKeyEvent(QEvent.KeyPress, event.key(), event.modifiers(), event.text(), event.isAutoRepeat(), event.count()))
-    #                 # widget.keyPressEvent(event)
-    #         return True
-    #     return False
-
+        self.r = np.array(r)
+        self.t = np.array(t)
+        self.K = np.array(K)
+        self.RDist = np.array(RDist)
+        self.TDist = np.array(TDist)
+ 
 
     def _init_property(self, ):
         '''
@@ -89,10 +84,10 @@ class Label3D(Animator):
         # properties used as defults
         self.current_joint = None
         self.current_joint_idx = None
-        self.exist_markers = []
-        self.joints2markers = {}
 
-        # joint update
+        # 3d joints
+        self.joints3d = np.full((self.nFrames, len(self._joint_names), 3), np.nan)        # 3d joints, x, y, z
+
 
     def initGUI(self, ):        # do not ihnerit the initUI from Animator
         '''
@@ -163,7 +158,7 @@ class Label3D(Animator):
 
 
     # links all the animators
-    def link_animators(self, ):
+    def align_animators(self, ):
         # check the frame or align the frame
         for i in range(len(self.video_animators)):
             assert self.video_animators[i].nFrames == self.video_animators[0].nFrames, "The frame number of videos must be the same"
@@ -175,7 +170,6 @@ class Label3D(Animator):
         self.frameInd = np.arange(self.nFrames)
         # TODO: should use restrict function to update the frame property
 
-        self.linkAll([self, *self.video_animators])
 
 
     def get_animators(self, ):
@@ -208,16 +202,6 @@ class Label3D(Animator):
     
     ## video animator GUI ends here
     
-    ## start the point labeling part
-    def get_skeletons_in_idx(self, skeletons=None):
-        '''
-        sort the joint by joints idx,
-        the joints is stored in a dict of dict. (no list to avoid errors)
-        '''
-        joint_names = skeletons['joint_names']
-        # skeletons_dict = 
-
-        return skeletons['joints_idx']
 
     # some operations will change the joint status,
     def button_select_joint(self, ):
@@ -263,7 +247,6 @@ class Label3D(Animator):
         print(f"joint update implemented, joint changed to {self.current_joint}, joint idx is {self.current_joint_idx}")
 
 
-
     def mousePressEvent(self, event: QMouseEvent) -> None:
         return super().mousePressEvent(event)
     
@@ -278,11 +261,126 @@ class Label3D(Animator):
             # self.next_frame()
         # test on the linked key press event, 
         # using the same key event as the animator
-        if event.key() == Qt.Key_S:
+        if event.key() == Qt.Key_F:
             print("S is pressed in main window")
+            # next frame
+            self.frame += 1 if self.frame < self.nFrames - 1 else 0
+            self.frame_update()
 
+        elif event.key() == Qt.Key_B:
+            self.frame -= 1 if self.frame > 0 else 0
+            self.frame_update()
 
+        # triangulate the current frame, current joint and reproject to all views
+        elif event.key() == Qt.Key_T:
+            self.triangulate_to_3d()
+            reprojection_points = self.reproject_to_all_views()
+            for i, animator in enumerate(self.video_animators):
+                animator.receive_reprojection(reprojection_points[i])
+            # update point position
         # update the frame for all the animators
+                
+        elif event.key() == Qt.Key_P and event.modifiers() == Qt.ControlModifier:
+            self.save_3d_joints("3d_joints.csv")
         
+    # for all animators, not only change the frame, but the exist markers
+    def frame_update(self, ):
+        for animator in self.video_animators:
+            animator.frame = self.frame
+            animator.frame_update()
         
+
+    def triangulate_to_3d(self, ):        # trianglate this frame
+        # get the 2d joints of frames from all views
+        # current exist points
+        frame_view_markers = np.full((self.view_num, len(self._joint_names), 2), np.nan)
+        for i, animator in enumerate(self.video_animators):
+            frame_view_markers[i, self.current_joint_idx] = animator.frames_markers[self.frame, self.current_joint_idx]
+
+        # at least two views
+        view_avaliable = np.zeros(self.view_num)
+        for i in range(self.view_num):
+            if not np.isnan(frame_view_markers[i, self.current_joint_idx]).all():
+                view_avaliable[i] = 1
+
+        if view_avaliable.sum() < 2:
+            print("At least two views are needed to trianglate 3d joints")
+            return
+        else:
+            # get variables for triangulation
+            points2d = []
+            camera_poses = []
+            intrinsics = []
+            for avaliable, points, cam_pose, intr in zip(view_avaliable, frame_view_markers, self.camParams, self.camParams):
+                if avaliable == 1:
+                    points2d.append(points)
+                    camera_poses.append(cam_pose)
+                    intrinsics.append(intr)
+            point_3d = triangulateMultiview(points2d, self.r, self.t, self.K, self.RDist, self.TDist)
+            self.joints3d[self.frame, self.current_joint_idx] = point_3d
+
     
+    def reproject_to_all_views(self, ):
+        # get the 3d joints of this frame and joint
+        points3d = self.joints3d[self.frame, self.current_joint_idx]
+        if np.isnan(points3d).all():
+            print("No 3d points are available for reprojecting")
+            return
+        else:
+            pass
+
+        # return 
+
+    def save_3d_joints(self, save_name):
+        return self.joints3d 
+    
+
+# function for multiview triangulation
+# could handle various number of views
+
+# ref: https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
+# ref: https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html
+# ref: https://gutsgwh1997.github.io/2020/03/31/%E5%A4%9A%E8%A7%86%E5%9B%BE%E4%B8%89%E8%A7%92%E5%8C%96/
+def triangulateMultiview(points2d, r, t, K, RDist, TDist):
+    # 
+    undist = []
+    for i in range(len(points2d)):
+        point = points2d[i]
+        dist_vec = [RDist[i][0], RDist[i][1], TDist[i][0], TDist[i][1], RDist[i][2]]
+        undistort_point = cv2.undistortPoints(point, K, dist_vec)
+        undist.append(undistort_point)
+
+    # triangulation
+    A = []    # the matrix for triangulation
+    for i in range(len(r)):
+        # get the projection matrix
+        P = np.hstack((r[i], t[i].T))       # shape: (3, 4)
+        A.append(np.vstack((undist[i][0, 0] * P[2, :] - P[0, :],
+                            undist[i][0, 1] * P[2, :] - P[1, :])))      
+
+    A = np.array(A)     # shape A: (len, 2, 4)
+    A = np.concatenate(A, axis=0)       # shape A: (len*2, 4)
+
+    # SVD
+    _, _, V = np.linalg.svd(A)      # shape V: (4, 4), V should be V^T in SVD decompose
+    point_3d = V[-1, :]             # why not the 
+    point_3d = point_3d / point_3d[-1]      # the last dim of point 3d corresponding 1, in 3D position[x, y, z, 1]
+
+    return point_3d[:3]
+
+
+# just the reverse calculation of triangulation, 
+def reprojectToViews(points3d, r, t, K, RDist, TDist, view_num):
+    # just use opencv cv2.projectPoints
+    rvec = []
+    for i in range(view_num):
+        rvec.append(cv2.Rodrigues(r[i])[0])
+
+    reprojected_points = []
+    for i in range(view_num):
+        dist_coef = [RDist[i][0], RDist[i][1], TDist[i][0], TDist[i][1], RDist[i][2]]
+        reprojected_point, _ = cv2.projectPoints(points3d, rvec[i], t[i], K[i], dist_coef)
+        reprojected_points.append(reprojected_point)
+
+    # the point shape: (view_num, 1, 2)
+    return reprojected_points
