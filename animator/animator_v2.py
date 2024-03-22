@@ -91,8 +91,9 @@ class VideoAnimator(Animator):
         self.marker_size = 10       # the size of the point
 
         self.initUI()
-        self._initView()
         self.update_frame()
+        self._initView()
+
 
     def read_video(self, video_path=None):
         if video_path is None:
@@ -116,7 +117,10 @@ class VideoAnimator(Animator):
         layout = QVBoxLayout()
 
         self.view.setMouseTracking(True)
-        self.view.setDragMode(QGraphicsView.ScrollHandDrag)         # find a better solution for drag mode
+        self.view.setDragMode(QGraphicsView.ScrollHandDrag)         # find a better solution for drag mode, 
+
+        # and change the mouse cursor to arrow
+        self.view.setCursor(Qt.ArrowCursor)             # the cursor should be arrow but it is not working
 
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -124,7 +128,7 @@ class VideoAnimator(Animator):
         self.view.setRenderHint(QPainter.Antialiasing)              # 去锯齿
         self.view.setRenderHint(QPainter.SmoothPixmapTransform)     # 
         self.view.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)           # transformation do what?
-        self.view.setResizeAnchor(QGraphicsView.AnchorUnderMouse)                   # 
+        self.view.setResizeAnchor(QGraphicsView.AnchorUnderMouse)                   # 以鼠标为中心 resize
 
         layout.addWidget(self.view)
         self.setLayout(layout)
@@ -152,9 +156,6 @@ class VideoAnimator(Animator):
         return self.frames_markers[self.frame, self.f_current_joint_idx]
 
     def update_frame(self, frame_ind=None):       # this function should be use after the frame change, also used to init the scene        
-        # clear the scene, but the view would change
-        self.scene.clear()
-        
         # frame_ind: the index of video frames, 
         # update frame and using self.frame as current frame
         if frame_ind is not None:
@@ -162,6 +163,9 @@ class VideoAnimator(Animator):
                 return
             
             self.frame = frame_ind
+
+        # clear the scene, but the view would not change
+        self.scene.clear()
 
         # make sure all the f start properties are reset
         self.f_current_joint_idx = None

@@ -159,7 +159,7 @@ class Label3D(Animator):
         
         # previous frame, temporarily use the key D, will use the arrow Left key later
         elif event.key() == Qt.Key_D:
-            if self.frame > self.frameRate:
+            if self.frame >= self.frameRate:
                 self.frame -= self.frameRate
             else: self.frame = 0
             self.update_frame()
