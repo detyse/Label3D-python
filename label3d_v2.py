@@ -10,11 +10,20 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 
-from utils.utils import CameraParams, Loader, read_json_skeleton
+from utils.utils import Loader, read_json_skeleton
 from animator.animator_v2 import Animator, VideoAnimator
 
 
 class Label3D(Animator):
+    '''
+    Inputs:
+    camParams: list of dict, each dict contains the camera parameters, including r, t, K, RDistort, TDistort. The format is consistent with label3d.
+    videos: list of str, the paths of videos
+    skeleton_path: str, the path of the skeleton json file, containing the joint names, joint connections, and joint colors.
+    pick_frames: list(or array) of int, the frames to be picked for labeling, if not provided, all frames will be labeled.
+
+    loader: Loader, the loader object, containing all the inputs, including camParams, videos, skeleton_path, and pick_frames.
+    '''
     def __init__(self, camParams=None, videos=None, skeleton_path=None, loader=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         assert (camParams is not None and videos is not None and skeleton_path is not None) or loader is not None, "Either loader or camParams, videos, and skeletons must be provided"
@@ -27,7 +36,7 @@ class Label3D(Animator):
             self.videos = videos
             self.skeleton = read_json_skeleton(skeleton_path)
         assert len(self.camParams) == len(self.videos), "The number of cameras and videos must be the same"
-
+     
         self._unpack_camParams()
         self.align_animators()        # could be reuse
         self._init_property()
@@ -107,7 +116,7 @@ class Label3D(Animator):
         video_animators = []
         for video in self.videos:
             animator = VideoAnimator(video, self.skeleton)
-            animator.setParent(self)
+            animator.setParent(self)        # 
             video_animators.append(animator)
         return video_animators
 
@@ -116,7 +125,7 @@ class Label3D(Animator):
             nViews = self.view_num
         
         nRows = np.floor(np.sqrt(nViews))
-
+        
         pos = np.zeros((nViews, 2))
         if nViews > 3:
             for i in range(nViews):

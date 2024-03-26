@@ -1,4 +1,4 @@
-from PySide6.QtGui import QWheelEvent
+from PySide6.QtGui import QEnterEvent, QMouseEvent, QWheelEvent
 import cv2
 import numpy as np
 
@@ -30,7 +30,7 @@ class Animator(QWidget):  # inherit from QWidget
     # the animators need show the frame, use this method to init a scene
     def initUI(self, ):
         self.scene = QGraphicsScene()
-        self.view = QGraphicsView(self.scene)
+        self.view = SceneViewer(self.scene)
 
     # like there is no need to handle the key press event in this class
     # def keyPressEvent(self, event):     # the frame operation, will be used in all animators
@@ -178,6 +178,9 @@ class VideoAnimator(Animator):
         q_image = QImage(current_frame.data, width, height, bytesPerLine, QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(q_image)
 
+        # resize the image to fit the view
+        pixmap = pixmap.scaled(self.view.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
         self.scene.addPixmap(pixmap)
 
         # plot the labeled joint markers and lines on this frame
@@ -261,16 +264,13 @@ class VideoAnimator(Animator):
     def reset_marker(self, item, new_pos):
         item.setPos(*new_pos)
 
-        print(item.data(self.d_lines))
-        print(item.data(self.d_joint_index))
-
-
         for line in item.data(self.d_lines):
             # reset lines
             line.updateLine(item)
         
         # self.f_joints2markers[item.data(self.d_joint_index)] = item
         self.frames_markers[self.frame, self.f_current_joint_idx] = new_pos
+
 
     def delete_marker(self, joint_idx=None):
         if joint_idx is None:
@@ -312,13 +312,44 @@ class VideoAnimator(Animator):
             if isinstance(item, QGraphicsEllipseItem):
                 self.delete_marker(item.data(self.d_joint_index))
 
-    def wheelEvent(self, event):
-        if event.angleDelta().y() > 0:
-            self.view.scale(1.1, 1.1)
-        else:
-            self.view.scale(0.9, 0.9)
+    # def wheelEvent(self, event):
+    #     if event.angleDelta().y() > 0:
+    #         self.view.scale(1.1, 1.1)
+    #     else:
+    #         self.view.scale(0.9, 0.9)
 
 # utils
+# some overrided helper classes
+class SceneViewer(QGraphicsView):
+    '''
+    This class override some methods of QGraphicsView,
+    to make the mouse wheel event work and change the cursor,
+    also fit the image to the view, engage the lines and points
+    '''
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMouseTracking(True)
+        self.setDragMode(QGraphicsView.ScrollHandDrag)         # find a better solution for drag mode,
+
+    def wheelEvent(self, event: QWheelEvent):
+        if event.angleDelta().y() > 0:
+            self.scale(1.1, 1.1)
+        else:
+            self.scale(0.9, 0.9)
+
+    def enterEvent(self, event: QEnterEvent) -> None:
+        super().enterEvent(event)
+        self.setCursor(Qt.ArrowCursor)
+
+    def mousePressEvent(self, event: QMouseEvent):
+        super().mousePressEvent(event)
+        self.setCursor(Qt.ArrowCursor)
+        
+    def mouseMoveEvent(self, event: QMouseEvent):
+        super().mouseMoveEvent(event)
+        self.setCursor(Qt.ArrowCursor)
+
+
 class Connection(QGraphicsLineItem):
     def __init__(self, start_point, end_point, color, shift=5):
         super().__init__()

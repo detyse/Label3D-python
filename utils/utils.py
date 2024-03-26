@@ -26,36 +26,36 @@ def read_json_skeleton(json_file):
 
 
 # struct helper classes
-@dataclass
-class CameraParams:
-    '''
-    r: 3 x 3
-    t: 3 x 1 or 1 x 3
-    K: 3 x 3
-    RDistort: 1 x 3
-    TDistort: 1 x 2
-    '''
-    r: np.ndarray = np.zeros((3, 3))
-    t: np.ndarray = np.zeros((3, 1))
-    K: np.ndarray = np.zeros((3, 3))
-    RDistort: np.ndarray = np.zeros((1, 3))
-    TDistort: np.ndarray = np.zeros((1, 2))
+# @dataclass
+# class CameraParams:
+#     '''
+#     r: 3 x 3
+#     t: 3 x 1 or 1 x 3
+#     K: 3 x 3
+#     RDistort: 1 x 3
+#     TDistort: 1 x 2
+#     '''
+#     r: np.ndarray = np.zeros((3, 3))
+#     t: np.ndarray = np.zeros((3, 1))
+#     K: np.ndarray = np.zeros((3, 3))
+#     RDistort: np.ndarray = np.zeros((1, 3))
+#     TDistort: np.ndarray = np.zeros((1, 2))
 
-    def __post_init__(self, mat_file):
-        mat_data = loadmat(mat_file)
-        self.r = mat_data['r']
-        self.t = mat_data['t'].transpose()  # check bug
-        self.K = mat_data['K']
-        self.RDistort = mat_data['RDistort']
-        self.TDistort = mat_data['TDistort']
+#     def __post_init__(self, mat_file):
+#         mat_data = loadmat(mat_file)
+#         self.r = mat_data['r']
+#         self.t = mat_data['t'].transpose()  # check bug
+#         self.K = mat_data['K']
+#         self.RDistort = mat_data['RDistort']
+#         self.TDistort = mat_data['TDistort']
 
 
-@dataclass
-class Skeleton:
-    '''
+# @dataclass
+# class Skeleton:
+#     '''
     
-    '''
-    a = 1
+#     '''
+#     a = 1
 
 @dataclass
 class Loader():
@@ -67,6 +67,8 @@ class Loader():
     video_paths: list = field(default_factory=list)
     cam_params: list = field(default_factory=list)
     skeleton: str = ""  # json file path 
+
+    frame_list: list = ""       # a list to store wanted frames index
 
     def __post_init__(self, index, video_paths, cam_params, skeletion_path):
         assert len(index) == len(video_paths) == len(cam_params), "Length of index, video_paths, and cam_params must be the same."

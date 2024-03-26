@@ -17,13 +17,20 @@ from animator.animator import Animator, VideoAnimator, Keypoint3DAnimator
 
 # inherit from Animator for all animator sync 
 class Label3D(Animator):
-    def __init__(self, camParams=None, videos=None, skeleton_path=None, loader=None, *args, **kwargs):
+    def __init__(self, camParams=None, videos=None, skeleton_path=None, pick_frames=None, loader=None, *args, **kwargs):
         super().__init__()
         '''
         can load from loader or from inputs
         the loader is a dataclass, storing all the input we need,
         to use loader, instantiate it first, #could read params from a mat file (not implemented yet)#
         
+        Inputs:
+            camParams: list of dict, each dict contains the camera parameters, including r, t, K, RDistort, TDistort. The format is consistent with label3d.
+            videos: list of str, the paths of videos
+            skeleton_path: str, the path of the skeleton json file, containing the joint names, joint connections, and joint colors.
+            pick_frames: list(or array) of int, the frames to be picked for labeling, if not provided, all frames will be labeled.
+
+            loader: Loader, the loader object, containing all the inputs, including camParams, videos, skeleton_path, and pick_frames.
         '''
         assert (camParams is not None and videos is not None and skeleton_path is not None) or loader is not None, "Either loader or camParams, videos, and skeletons must be provided"
         if loader:
@@ -34,6 +41,7 @@ class Label3D(Animator):
             self.camParams = camParams
             self.videos = videos
             self.skeleton = read_json_skeleton(skeleton_path)
+
         assert len(self.camParams) == len(self.videos), "The number of cameras and videos must be the same"
         
         self._init_property()
@@ -152,10 +160,6 @@ class Label3D(Animator):
         main_layout.addWidget(video_widget)
         self.setLayout(main_layout)  
 
-    # def install_event_filters(self, filter_obj):
-    #     for animator in [self, *self.video_animators]:
-    #         animator.installEventFilter(filter_obj)
-
 
     # links all the animators
     def align_animators(self, ):
@@ -169,8 +173,6 @@ class Label3D(Animator):
         self.nFrames = self.video_animators[0].nFrames
         self.frameInd = np.arange(self.nFrames)
         # TODO: should use restrict function to update the frame property
-
-
 
     def get_animators(self, ):
         '''
