@@ -12,6 +12,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("3D Labeling Tool")
         self.setGeometry(100, 100, 800, 600)
 
+        layout = QVBoxLayout()
+        self.label3d = Label3D()
+        layout.addWidget(self.label3d)
 
 
 if __name__ == "__main__":
