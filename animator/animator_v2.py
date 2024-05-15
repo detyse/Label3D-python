@@ -1,3 +1,5 @@
+# animator for video display
+
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QWheelEvent
 import cv2
 import numpy as np
@@ -117,10 +119,10 @@ class VideoAnimator(Animator):
         layout = QVBoxLayout()
 
         self.view.setMouseTracking(True)
-        self.view.setDragMode(QGraphicsView.ScrollHandDrag)         # find a better solution for drag mode, 
+        # self.view.setDragMode(QGraphicsView.ScrollHandDrag)         # find a better solution for drag mode, 
 
         # and change the mouse cursor to arrow
-        self.view.setCursor(Qt.ArrowCursor)             # the cursor should be arrow but it is not working
+        self.view.setCursor(Qt.ArrowCursor)             # the cursor should be arrow but it is not working      
 
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -163,7 +165,7 @@ class VideoAnimator(Animator):
                 return
             
             self.frame = frame_ind
-
+        
         # clear the scene, but the view would not change
         self.scene.clear()
 
@@ -207,7 +209,7 @@ class VideoAnimator(Animator):
         if current_index in self.f_exist_markers:
             self.reset_marker(self.f_joints2markers[current_index], pos)
             return
-
+        
         # set the point
         marker = QGraphicsEllipseItem(int(-self.marker_size), int(-self.marker_size), self.marker_size, self.marker_size)
         marker.setPos(pos[0], pos[1])
@@ -262,7 +264,7 @@ class VideoAnimator(Animator):
         self.f_joints2markers[current_index] = marker
 
     def reset_marker(self, item, new_pos):
-        item.setPos(*new_pos)
+        item.setPos(*new_pos)       # 
 
         for line in item.data(self.d_lines):
             # reset lines
@@ -318,8 +320,9 @@ class VideoAnimator(Animator):
     #     else:
     #         self.view.scale(0.9, 0.9)
 
-# utils
-# some overrided helper classes
+# # utils
+# # some overrided helper classes
+# # work for canceling the scroll bar and make the mouse wheel event work and change the cursor
 class SceneViewer(QGraphicsView):
     '''
     This class override some methods of QGraphicsView,
@@ -329,7 +332,23 @@ class SceneViewer(QGraphicsView):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMouseTracking(True)
-        self.setDragMode(QGraphicsView.ScrollHandDrag)         # find a better solution for drag mode,
+        # self.setDragMode(QGraphicsView.ScrollHandDrag)         # find a better solution for drag mode,
+        self.setDragMode(QGraphicsView.NoDrag)    
+        
+        # and change the mouse cursor to arrow
+        self.setCursor(Qt.ArrowCursor)             # the cursor should be arrow but it is not working      
+
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        self.setRenderHint(QPainter.Antialiasing)              # 去锯齿
+        self.setRenderHint(QPainter.SmoothPixmapTransform)     # 
+        self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)           # transformation do what?
+        self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)                   # 以鼠标为中心 resize
+
+        self._dragging = False
+        self._drag_start_pos = None
+        self._transform = self.transform()
 
     def wheelEvent(self, event: QWheelEvent):
         if event.angleDelta().y() > 0:
@@ -342,22 +361,39 @@ class SceneViewer(QGraphicsView):
         self.setCursor(Qt.ArrowCursor)
 
     def mousePressEvent(self, event: QMouseEvent):
+        if event.button() == Qt.LeftButton:
+            self._dragging = True
+            self._drag_start_pos = event.pos()
+            self._transform_start = self.transform()
+            self.setCursor(Qt.ClosedHandCursor)
         super().mousePressEvent(event)
-        self.setCursor(Qt.ArrowCursor)
         
     def mouseMoveEvent(self, event: QMouseEvent):
+        if self._dragging:
+            delta = event.pos() - self._drag_start_pos
+            translate_x = delta.x()
+            translate_y = delta.y()
+            self.setTransform(self._transform_start)
+            self.translate(translate_x, translate_y)
         super().mouseMoveEvent(event)
         self.setCursor(Qt.ArrowCursor)
 
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        if event.button() == Qt.LeftButton:
+            self._dragging = False
+            self.setCursor(Qt.ArrowCursor)
+        super().mouseReleaseEvent(event)
 
-class Connection(QGraphicsLineItem):
+
+class Connection(QGraphicsLineItem):        # the line is not necessarily combined with the points, you do not return, so the 
     def __init__(self, start_point, end_point, color, shift=5):
         super().__init__()
-        self.shift = shift      # to meet the marker center
+        self.shift = shift      # to meet the marker center, pass the shift from somewhere
 
         self.start_point = start_point
         self.end_point = end_point
         # print("line points", start_point.scenePos(), end_point.scenePos())
+
 
         self._line = QLineF(start_point.scenePos(), end_point.scenePos())
         self.setLine(self._line)
@@ -370,6 +406,7 @@ class Connection(QGraphicsLineItem):
         # ...
 
     def updateLine(self, source):       # 
+        # source position
         if source == self.start_point:
             self._line.setP1(source.scenePos())
         elif source == self.end_point:
@@ -381,6 +418,3 @@ class Connection(QGraphicsLineItem):
 
 def color2QColor(color):
     return QColor(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255))
-
-
-    

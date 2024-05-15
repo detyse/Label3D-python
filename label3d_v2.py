@@ -37,8 +37,8 @@ class Label3D(Animator):
             self.skeleton = read_json_skeleton(skeleton_path)
         assert len(self.camParams) == len(self.videos), "The number of cameras and videos must be the same"
      
-        self._unpack_camParams()
-        self.align_animators()        # could be reuse
+        self._unpack_camParams()      # get settings from params
+        self.align_animators()        # could be reuse  # 
         self._init_property()
 
         self._initGUI()
@@ -80,6 +80,7 @@ class Label3D(Animator):
         self.joints3d = np.full((self.nFrames, len(self._joint_names), 3), np.nan)
 
     def _initGUI(self, ):        # get animators 
+        self.setCursor(Qt.ArrowCursor)
         self.setWindowTitle("3D Labeling Tool")
 
         video_widget = QWidget(self)
@@ -132,9 +133,8 @@ class Label3D(Animator):
                 row = i % nRows
                 col = np.floor(i / nRows)
                 pos[i, :] = [row, col]
-
         return pos
-    
+        
     def align_animators(self, ):
         self.video_animators = self._set_animators()
         
@@ -155,6 +155,7 @@ class Label3D(Animator):
     def button_select_joint(self, ):
         button_joint = self.sender().text()
         self.update_joint(button_joint)
+
 
     def keyPressEvent(self, event):
         super().keyPressEvent(event)

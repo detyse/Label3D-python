@@ -76,3 +76,4 @@ class Loader():
         self.video_paths = video_paths
         self.cam_params = cam_params
         self.skeleton = read_json_skeleton(skeletion_path)
+

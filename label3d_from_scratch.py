@@ -51,7 +51,7 @@ class Label3D(Animator):
         self.align_animators()
 
         self.unpack_camParams()
-
+    
 
     def unpack_camParams(self, ):
         r = []
@@ -174,6 +174,7 @@ class Label3D(Animator):
         self.frameInd = np.arange(self.nFrames)
         # TODO: should use restrict function to update the frame property
 
+
     def get_animators(self, ):
         '''
         return the animators for each video
@@ -185,7 +186,8 @@ class Label3D(Animator):
             video_animators.append(animator)
 
         return video_animators
-    
+
+
     # 返回view的位置，第几行 第几列, 保存在一个数组中 对应 views， 
     def get_views_position(self, nViews=None):
         if nViews is None:
