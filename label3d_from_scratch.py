@@ -62,7 +62,7 @@ class Label3D(Animator):
         for cam in self.camParams:
             r.append(cam["r"][0][0])                # shape: (3, 3), rotation matrix
             t.append(cam["t"][0][0])                # shape: (1, 3), translation vector
-            K.append(cam["K"][0][0].T)              # shape: (3, 3), intrinsic matrix, need to transpose to fit the shape
+            K.append(cam["K"][0][0].T)              # shape: (3, 3), intrinsic matrix, need to transpose to fit the shape  (test: 24-05-17 remove transpose not work)
             RDist.append(cam["RDistort"][0][0])     # shape: (1, 3), corresponding to k1, k2, k3
             TDist.append(cam["TDistort"][0][0])     # shape: (1, 2), corresponding to p1, p2
         

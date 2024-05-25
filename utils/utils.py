@@ -9,6 +9,9 @@ import numpy as np
 from scipy.io import loadmat
 from dataclasses import dataclass, field
 
+import yaml
+
+
 # transform mat to json to load 
 def transform_mat_to_json_skeleton(mat_file, save_file):
     mat = loadmat(mat_file)
@@ -58,6 +61,8 @@ def read_json_skeleton(json_file):
 #     a = 1
 
 @dataclass
+# to organize the parameters all together
+# the function to read the yaml file and load the parameters
 class Loader():
 
     index: list = field(default_factory=list)

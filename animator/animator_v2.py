@@ -118,19 +118,19 @@ class VideoAnimator(Animator):
         # set the QGraphicsView to show the frame
         layout = QVBoxLayout()
 
-        self.view.setMouseTracking(True)
-        # self.view.setDragMode(QGraphicsView.ScrollHandDrag)         # find a better solution for drag mode, 
+        # self.view.setMouseTracking(True)
+        # # self.view.setDragMode(QGraphicsView.ScrollHandDrag)         # find a better solution for drag mode, 
 
-        # and change the mouse cursor to arrow
-        self.view.setCursor(Qt.ArrowCursor)             # the cursor should be arrow but it is not working      
+        # # and change the mouse cursor to arrow
+        # self.view.setCursor(Qt.ArrowCursor)             # the cursor should be arrow but it is not working      
 
-        self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-        self.view.setRenderHint(QPainter.Antialiasing)              # 去锯齿
-        self.view.setRenderHint(QPainter.SmoothPixmapTransform)     # 
-        self.view.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)           # transformation do what?
-        self.view.setResizeAnchor(QGraphicsView.AnchorUnderMouse)                   # 以鼠标为中心 resize
+        # self.view.setRenderHint(QPainter.Antialiasing)              # 去锯齿
+        # self.view.setRenderHint(QPainter.SmoothPixmapTransform)     # 
+        # self.view.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)           # transformation do what?
+        # self.view.setResizeAnchor(QGraphicsView.AnchorUnderMouse)                   # 以鼠标为中心 resize
 
         layout.addWidget(self.view)
         self.setLayout(layout)
@@ -305,8 +305,9 @@ class VideoAnimator(Animator):
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
             pos = event.pos()
-            pos = self.view.mapToScene(pos)
+            pos = self.view.mapToScene(pos)     # get the position
             self.plot_marker_and_lines([pos.x(), pos.y()])
+            print(f"plot point position: {pos.x()}, {pos.y()}")
         elif event.button() == Qt.RightButton and event.modifiers() == Qt.ControlModifier:
             pos = event.pos()
             pos = self.view.mapToScene(pos)
@@ -319,6 +320,7 @@ class VideoAnimator(Animator):
     #         self.view.scale(1.1, 1.1)
     #     else:
     #         self.view.scale(0.9, 0.9)
+
 
 # # utils
 # # some overrided helper classes
@@ -385,6 +387,8 @@ class SceneViewer(QGraphicsView):
         super().mouseReleaseEvent(event)
 
 
+# NOTE: meet some error when using the auto triangle, check if the error comes from here
+# 
 class Connection(QGraphicsLineItem):        # the line is not necessarily combined with the points, you do not return, so the 
     def __init__(self, start_point, end_point, color, shift=5):
         super().__init__()
@@ -394,8 +398,9 @@ class Connection(QGraphicsLineItem):        # the line is not necessarily combin
         self.end_point = end_point
         # print("line points", start_point.scenePos(), end_point.scenePos())
 
+        print(f"type of the points of the line {type(start_point)}, {type(end_point)}")
 
-        self._line = QLineF(start_point.scenePos(), end_point.scenePos())
+        self._line = QLineF(start_point.mapToScene(-self.shift, -self.shift), end_point.mapToScene(-self.shift, -self.shift))
         self.setLine(self._line)
 
         # some defualt properties
@@ -408,13 +413,43 @@ class Connection(QGraphicsLineItem):        # the line is not necessarily combin
     def updateLine(self, source):       # 
         # source position
         if source == self.start_point:
-            self._line.setP1(source.scenePos())
+            self._line.setP1(source.mapToScene(-self.shift, -self.shift))
         elif source == self.end_point:
-            self._line.setP2(source.scenePos())
+            self._line.setP2(source.mapToScene(-self.shift, -self.shift))
         else:
             raise ValueError("source should be the start or end point")
         self.setLine(self._line)
 
+# class Connection(QGraphicsLineItem):        # the line is not necessarily combined with the points, you do not return, so the 
+#     def __init__(self, start_point, end_point, color, shift=5):
+#         super().__init__()
+#         self.shift = shift      # to meet the marker center, pass the shift from somewhere
+
+#         self.start_point = start_point
+#         self.end_point = end_point
+#         # print("line points", start_point.scenePos(), end_point.scenePos())
+
+#         print(f"type of the points of the line {type(start_point)}, {type(end_point)}")
+
+#         self._line = QLineF(start_point.mapToScene(0, 0), end_point.mapToScene(0, 0))
+#         self.setLine(self._line)
+
+#         # some defualt properties
+#         self.setSelected(False)
+        
+#         the_color = QColor(color2QColor(color))
+#         self.setPen(QPen(the_color, 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+#         # ...
+
+#     def updateLine(self, source):       # 
+#         # source position
+#         if source == self.start_point:
+#             self._line.setP1(source.mapToScene(0, 0))
+#         elif source == self.end_point:
+#             self._line.setP2(source.mapToScene(0, 0))
+#         else:
+#             raise ValueError("source should be the start or end point")
+#         self.setLine(self._line)
 
 def color2QColor(color):
     return QColor(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255))

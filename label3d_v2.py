@@ -51,9 +51,9 @@ class Label3D(Animator):
         RDist = []
         TDist = []
         for cam in self.camParams:
-            r.append(cam["r"][0][0].T)                # shape: (3, 3), rotation matrix
+            r.append(cam["r"][0][0])                # shape: (3, 3), rotation matrix
             t.append(cam["t"][0][0])                # shape: (1, 3), translation vector
-            K.append(cam["K"][0][0].T)              # shape: (3, 3), intrinsic matrix, need to transpose to fit the shape
+            K.append(cam["K"][0][0].T)                # shape: (3, 3), intrinsic matrix, need to transpose to fit the shape
             RDist.append(cam["RDistort"][0][0])     # shape: (1, 3), corresponding to k1, k2, k3
             TDist.append(cam["TDistort"][0][0])     # shape: (1, 2), corresponding to p1, p2
         
@@ -78,6 +78,7 @@ class Label3D(Animator):
         self.current_joint_idx = None
 
         self.joints3d = np.full((self.nFrames, len(self._joint_names), 3), np.nan)
+
 
     def _initGUI(self, ):        # get animators 
         self.setCursor(Qt.ArrowCursor)
@@ -149,7 +150,6 @@ class Label3D(Animator):
         self.frameInd = np.arange(self.nFrames)
         # TODO: should use restrict function to update the frame property
         # reset
-
 
     ## methods used to handle the GUI
     def button_select_joint(self, ):
