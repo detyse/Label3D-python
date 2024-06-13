@@ -12,344 +12,375 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 
-from utils.utils import CameraParams
-from animator.animator import Animator, VideoAnimator, Keypoint3DAnimator
+from utils.utils import read_json_skeleton, LoadYaml
+from animator.animator_v2 import Animator, VideoAnimator
+
 
 # is a GUI for manual labeling of 3D keypoints in multiple cameras.
 class Label3D(Animator):
-    def __init__(self, camParams=None, videos=None, skeleton_path=None, loader=None, *args, **kwargs) -> None:
+    def __init__(self, camParams=None, videos=None, skeleton=None, frame_num2label=None, save_path=None) -> None:
         super().__init__()  
-        
-
-        # properties private
-        self._origNFrames = 0
-        self._initialMarkers = None
-        self._isKP3Dplotted = False
-        self._gridColor = (0.7, 0.7, 0.7)        # why not int?
-        # self.
-        self._labelPosition = []     # ?
-        self._tablePosition = []     # ?
-        self._instructions = []      # 
-        self._statusMsg = []     # status message
-
-        self._camPoints = None # 2D camera points for each frame, SHAPE: (#markers, #cams, 2, #frames)
-        self._handlabeled2D = None # 2D hand labeled points only (subset of camPoints)
-
-        self._hiddenAxesPos = []
-        self._isLabeled = 2
-        self._isInitialized = 1
-        self._counter = None# total number of labeled frames
-        self._sessionDatestr = None
-
-        # properties public
-        self.autosave = True
-        self.clipboard = None
-        self.origCamParams = None
-        self.cameraParams = None       # cam params: intrinsic 内参
-        self.markers = None
-        self.camPoints = None       # 2D camera points for each frame. SHAPE: (#markers, #cams, 2, #frames)
-        self.handLabeled2D = None   # 2D hand labeled points only (subset of camPoints) used to auto label
-
-        self.points3D = None       # 3D points for frames. SHAPE: (#markers, 3, #frames)  # for all cameras got a 3D point
-        self.status = None         # status message
-        self.selectedNode = None   # ID of selected joint in joint table (use a radio button and key press to select)
-        self.skeleton = None       # skeletons selected
-
-        self.ImageSize = None
-        self.nMarkers = None 
-        self.nCams = None
-        self.jointsPanel = None     # "panel" for joints window
-        self.jointsControl = None   # "uicontrol" object for joints window
-
-        self.savePath = ""
-        self.kp3d = None          # 3D keypoint animator show the 3D keypoints
-        self.statusAnimator = None  # animator for status heatmap window  # different from joints panel
-        self.h = None              # cell of animators 
-        self.verbose = True         # unused 
-
-        self.undistortedImages = False  # undistorted images, if true, treat images as undistorted (aka, do not apply intrinsics to frame array)
-        self.sync = None        # camera sync object 同步
-        self.framesToLabel = None # frames number's to label: [1 x nFrames] (optional)
-        self.videoPositions = None # x, y, width, height (origin = upper left corner) for each video window, shape: [nCams x 4]
-
-        self.defScale = None  # global scale for image 
-        self.pctScale = None  # scale images by this fraction  
-
-        self.DragPointColor = [1, 1, 1]     # passed to DraggableKeypoint2DAnimator constructor
-        self.visibleDragPoints = True       # passed to DraggableKeypoint2DAnimator constructor
-
-        # self._init_from_scratch(camParams, videos, skeleton, *args, **kwargs)
-
-    # constructors
-    def _init_from_scratch(self, camParams, videos, skeleton, *args, **kwargs):
-        # Animator parameters
-        self.origCamParams = camParams
-        self.nFrames = videos[0]
-        self.origNFrames = self.nFrames
-        self.frameInds = range(self.nFrames)
-        self.nMarkers = len(skeleton)
-        self.sessionDatestr = time.strftime("%Y%m%d-%H%M%S")
-        self.savePath = []
-        
-        # Set up the cameras
-        self.nCams = []
-        self.h = []
-        self.ImageSize = []
-        [self.cameraParams, self.orientations, self.locations] = self.loadcamParams(self.origCamParams)
-        self.cameraPoses = self.getCameraPoses()
-
-        # make the GUI
-        if self.videoPositions is None:
-            self.videoPositions = self.getPositions(self.nCams)
-        for nCam in self.nCams:
-            pos = self.videoPositions[nCam]
-            # self.h[nCam] =            # 原文：obj.h{nCam} = VideoAnimator(videos{nCam}, 'Position');
-            
-
-        self.camParams = camParams
+        # assert
+        self.camParams = camParams          # the camera parameters
         self.videos = videos
-        self.skeleton = skeleton
-        self.construct_animators()
+        self.skeleton = read_json_skeleton(skeleton)
+        self.label_num = frame_num2label
 
-        self.arrange_videos()
+        self.save_path = save_path
 
-        self.initGUI()
+        # print(len(self.camParams), len(self.videos))
+        # print(self.videos)
+        assert len(self.camParams) == len(self.videos)
+        self.view_num = len(self.camParams)
 
-
-
-    # 暂时不会用的方法
-    def _init_load_state(self, file, videos, *args, **kwargs):
-        pass    # file: path to saved label3d state file (with or without videos)
-        # videos: list of h x w x c x nFrames videos
-    def _init_load_file(self, file, *args, **kwargs):
-        pass    # file: path to saved label3d state file (with videos)
-    def _init_gui(self, *args, **kwargs):
-        pass    # ???
-    @classmethod
-    def load_and_merge(cls, file, *args, **kwargs):
-        # file: cell array of paths to saved label3d state files (with videos)
-        return cls(file=file, *args, **kwargs)
-    
-
-    @staticmethod
-    def construct_animators(self, ):
+        self._unpack_camParams()
+        self.frame_align_with_animators()
+        self._init_properties()
         
-        pass 
+        self._initGUI()
 
 
-    # set the init GUI, 
-    # 1. set the layout of the GUI
-    # add a radio button to select the joint, in a additional window or in the main window
-    def initGUI(self, ):
-        animators = self.getAnimators()
-        pass 
+    def _unpack_camParams(self, ):
+        r = []
+        t = []
+        K = []
+        RDist = []
+        TDist = []
+
+        # TODO: confirm the camParams format and order
+        for cam in self.camParams:          # keep order? 
+            r.append(cam["r"][0][0].T)
+            t.append(cam["t"][0][0])
+            K.append(cam["K"][0][0].T)
+            RDist.append(cam["RDistort"][0][0])
+            TDist.append(cam["TDistort"][0][0])
+
+        self.r = np.array(r)
+        self.t = np.array(t)
+        self.K = np.array(K)
+        self.RDist = np.array(RDist)
+        self.TDist = np.array(TDist)
 
 
-    # methods 
-    def loadcamParams(self, camParams):
-        pass
+    def _init_properties(self, ):
+        # no need for video assert because video is a list
+        # for video in self.videos:       # 
+        #     assert os.path.exists(video), f"Video file {video} not found"
+        
+        # assert the cam and video number, keep the order
+        # TODO: change here to keep the order, maybe using dict 
+        assert len(self.camParams) == len(self.videos), "The number of cameras and videos should be the same"
 
-    def getCameraPoses(self, ):
-        # return table of camera poses
-        pass
+        self.view_num = len(self.camParams)
 
-    # 
-    def buildFromScratch(self, camParams, videos, skeleton):
+        # the skeleton format aligned with DANNCE and Label3D
+        self._joint_names = self.skeleton["joint_names"]
+        self._joint_idx = self.skeleton["joints_idx"]
+        self._color = self.skeleton["color"]
 
-        return
+        self.current_joint = None
+        self.current_joint_idx = None
 
-    # set the position of each video animator    
-    def positionFromNRows(self, nViews, nRows):
-        # get position with views number and nRows, not useful
-        # nRows 表示 每行视图个数
-        len = np.ceil(nViews / nRows)
-        pos = np.zeros((nViews, 4))
-        for i in range(nViews):
-            row = np.floor(i / nRows)
-            col = i % nRows
-            pos[i, :] = [col / len, 1 - (row + 1) / nRows, 1 / len, 1 / nRows]
-        # pos 是 画面分割的比例 y, x, h, w
-    
-    def getPositions(self, nViews=None):
-        # get the axes positions of each camera view
-        # inputs: nViews - number of views
+        self.joints3d = np.full((self.nFrames, len(self._joint_names), 3), np.nan)          # NOTE: data to be saved
+        
+        # for Jiehan: add the original label points saving (not reprojected points) # quit large
+        self.labeled_points = np.full((self.view_num, self.nFrames, len(self._joint_names), 2), np.nan)     # NOTE: data to be saved
+        # how to get the original point position from the animator?
+        
+
+    def _initGUI(self, ):
+        self.setCursor(Qt.ArrowCursor)
+        self.setWindowTitle("3D Labeling Tool")
+
+        video_widget = QWidget(self)
+        side_bar = QWidget(self)
+
+        left_layout = QVBoxLayout()
+        main_layout = QHBoxLayout()
+
+        self.joint_button = {}
+
+        for joint in self._joint_names:
+            button = QRadioButton(joint, side_bar)
+            self.joint_button[joint] = button
+            button.clicked.connect(self.button_select_joint)        
+            # TODO: function button_select_joint connect to the joint change
+            left_layout.addWidget(button)
+
+        side_bar.setLayout(left_layout)
+        main_layout.addWidget(side_bar)
+
+        # TODO: shrink the margin of the video_widget
+        views_layout = QGridLayout()
+        # set the space between widgets
+        views_layout.setHorizontalSpacing(0)
+        views_layout.setVerticalSpacing(0)
+
+        positions = self._set_views_position()          # get the positions of the views
+        
+        for i, animator in enumerate(self.video_animators):
+            views_layout.addWidget(animator, *positions[i])
+
+        video_widget.setLayout(views_layout)
+        main_layout.addWidget(video_widget)
+
+        self.setLayout(main_layout)
+
+
+    def _set_animators(self, ):         # the video passed to the animator should be a list of all the video files
+        video_animators = []            # a function to get the corresponding video list, in the utils: yaml loader
+        for video in self.videos:        
+            animator = VideoAnimator(video, self.skeleton, self.label_num)
+            animator.setParent(self)
+            video_animators.append(animator)
+        return video_animators
+        # the linkage of animators and the video is here, have nothing with the position
+
+
+    def _set_views_position(self, nViews=None):
         if nViews is None:
-            nViews = self.nCams
+            nViews = self.view_num
+
         nRows = np.floor(np.sqrt(nViews))
+
+        pos = np.zeros((nViews, 2))
         if nViews > 3:
-            pos = self.positionFromNRows(nViews, nRows)
-        else:
-            pos = self.positionFromNRows(nViews, 1)
+            for i in range(nViews):
+                row = i % nRows
+                col = np.floor(i / nRows)
+                pos[i, :] = [row, col]
         return pos
-
-    def getAnimators(self, ):
-        # get the animators
-        # including the video animators and one 3D keypoint animator
-        
-        pass
-
-    def loadcamParams(self, camParams):
-        # Helper to load in camera params into cameraParameters into cameraParameters objects
-        #  and 保存世界方向和世界位置
-        # inputs: camParams - cell array of camera parameters structs
-        # outputs: [c, orientations, locations] - camera parameters, orientations, and locations
-
-        (c, orientations, locations) = [], [], []
-        
-        for i in range(len(camParams)):
-            K = camParams[i]["K"]
-            RDistort = camParams[i]["RDistort"]
-            TDistort = camParams[i]["TDistort"]
-            r = camParams[i]["r"]
-            rotationVector = rotationMatrixToVector(r)
-            translationVector = camParams[i]["t"]
-
-            c.append({
-                'IntrinsicMatrix': K, 
-                'ImageSize': self.imageSize,
-                'RotationVector': rotationVector, 
-                'TranslationVector': translationVector, 
-                'RadialDistortion': RDistort, 
-                'TangentialDistortion': TDistort})
-            # 没有 cameraParameters 这个类
-        
-            orientation = np.transpose(r)                           # MATLAB CODE: orientation = r'
-            orientations.append(orientation)           
-            location = -np.dot(translationVector, orientation)      # MATLAB CODE: location = -translationVector * orientation
-            locations.append(location)
-
-        return [c, orientations, locations]
-    
-    def getCameraPoses(self, ):
-        # Helper function to store the camera poses for triangulation
-        view_ids = np.arange(1, self.nCams + 1)
-        
-        # 保存相机姿态
-        cameraPoses = pd.DataFrame({
-            'ViewId': view_ids,
-            'Orientation': self.orientations,
-            'Location': self.locations
-        })
-        # ignored matlab code:
-        # for i = 1:obj.nCams
-        #    cameraPoses(i).Location = obj.locations{i};
-        # end
-        return cameraPoses
-
-    def triangulateView(self, ):
-        # Triangulate labeled points and zoom all images around the those points    :need zoom?
-        
-        # Make sure there is at least one point could be triangulated
-        frame = self.frame
-        meanPts = np.mean(self.camPoints[:, :, :, frame], axis=1)
-        # get points number
-        if meanPts.shape[0] < 2:
-            return
-        
-        # get all camera intrinsics
-        intrinsics = self.cameraParams  # TODO: check the data saving format 
-        validCams = np.where(~np.isnan(meanPts[:, 0]))[0]
-        pointTrackers = pointTrack()
-
-        # zoom
-        # if a global scale has been defined, use it. Otherwise use a percentage of the image size
-        # 作用不明...
-        
-        return 
-    
-    def getLabeledJoints(self, frame):
-        # Label3D: Look within a frame and return all joints with at least two labeled views, 
-        # as well as a logical vector denoting which two views.  # 两个视图的逻辑向量, 两视图间是否相连
-        s = np.zeros((self.nMarkers, self.nCams))
-        for i in range(self.nMarkers):
-            s[i, :] = ~np.isnan(self.camPoints[i, :, 0, frame])
-        return 
     
 
-    def getPointTrack(self, frame, jointId, camIds):
-        # in Label3D, return a pointTrack object storing the 2D points for a given joint and frame
+    def frame_align_with_animators(self, ):
+        self.video_animators = self._set_animators()
 
-        return
-
-    def forceTriangulateLabeledPoints(self, ):
-        # 
+        # check the frame or align the frame
+        for i in range(len(self.video_animators)):
+            assert self.video_animators[i].nFrames == self.video_animators[0].nFrames, "The frame number of videos must be the same"
+            assert self.video_animators[i].frame == self.video_animators[0].frame, "The frame index of videos must be the same"
+        
+        # set label3d frame property
+        self.frame = self.video_animators[0].frame        
+        self.nFrames = self.video_animators[0].nFrames
+        self.frameInd = np.arange(self.nFrames)
         return 
 
-    def pointTrack(self, ):
-        # get the point 
-        pass 
 
-    # 按键事件
-    def keyPressEvent(self, event): 
-        # inherited from Animator
-        if event.key() == Qt.Key_H:
-            print("Help message: ")
-        elif event.key() == Qt.Key_Backspace:
-            # delete the selected joint
-            pass
+    ## methods used to handle the GUI
+    def button_select_joint(self, ):
+        button_joint = self.sender().text()
+        self.update_joint(button_joint)
+
+
+    def keyPressEvent(self, event):
+        super().keyPressEvent(event)
+
+        # next frame, temporarily use the key F, will use the arrow Right key later
+        if event.key() == Qt.Key_F:
+            print("f is pressed")
+            if self.frame < self.nFrames - 1:
+                self.frame += self.frameRate
+            else: self.frame = self.nFrames - 1
+            self.update_frame()
+        
+        # previous frame, temporarily use the key D, will use the arrow Left key later
+        elif event.key() == Qt.Key_D:
+            print("d is pressed")
+            if self.frame >= self.frameRate:
+                self.frame -= self.frameRate
+            else: self.frame = 0
+            self.update_frame()
+        
+        # switch joint
+        elif event.key() == Qt.Key_Tab:
+            print("tab is pressed")
+            if self.current_joint_idx is None:
+                self.update_joint(0)
+            elif self.current_joint_idx < len(self._joint_names) - 1:
+                self.update_joint(self.current_joint_idx + 1)
+            else:
+                self.update_joint(0)
+        
+        # triangulate the 3D joint
         elif event.key() == Qt.Key_T:
-            # auto label # main function 
-            pass 
-        # elif event.key() == Qt.Key_
+            print("t is pressed")
+            if self.triangulate_joints():
+                # reproject the 3D joint to the views
+                self.reproject_joints()
+
+        elif event.key() == Qt.Key_S:
+            print("s is pressed")
+            self.save_labels()
 
 
-        return 
-    
-    # 鼠标事件
-    def mousePressEvent(self, event):
-        # inherited from VideoAnimator
-        # return position and draw a point
+    ## update the current joint, called by button and key press
+    ## could update the button?
+    def update_joint(self, input=None):
+        print("Update joint")
+        if input is None:       # init the joint state
+            self.current_joint = None
+            self.current_joint_idx = None
+
+            # TODO: test work
+            for button in self.joint_button.itervalues():
+                button.setChecked(False)
+
+        else: 
+            if isinstance(input, int):
+                assert input < len(self._joint_names) and input >= 0, f"Index {input} is out of range"
+                self.current_joint_idx = input
+                self.current_joint = self._joint_names[input]
+
+            elif isinstance(input, str):
+                assert input in self._joint_names, f"Joint {input} is not in the joint list"
+                self.current_joint = input
+                self.current_joint_idx = self._joint_names.index(input)
+
+            # TODO: test work
+            self.joint_button[self.current_joint].setChecked(True)
+
+        for animator in self.video_animators:
+            animator.set_joint(self.current_joint_idx)
+
+
+    # update the frame to control the animator frame change
+    def update_frame(self, ):
+        for i, animator in enumerate(self.video_animators):
+            animator.update_frame(self.frame)
+            # collect the original labeled points
+            self.labeled_points[i, self.frame] = np.array(animator.get_all_original_marker_2d())
+
+
+    # TODO: check the function
+    def triangulate_joints(self, ):         # called when T is pressed
+        # print("triangulate is called")
+        if self.current_joint is None:
+            print("Please select a joint first")
+            return False
         
+        frame_view_markers = np.full((self.view_num, 2), np.nan)
+        for i, animator in enumerate(self.video_animators):     # get the joint position in each view
+            frame_view_markers[i] = animator.get_marker_2d(self.frame, self.current_joint_idx)
+
+        # get the how many views have the joint
+        view_avaliable = ~np.isnan(frame_view_markers).all(axis=1)      
+        # print("the index of the avaliable view:   ", view_avaliable)       # should be a vector with 0 and 1, as index for the views
+
+        if np.sum(view_avaliable) < 2:
+            print("At least two views are needed to triangulate a joint")
+            return False
+        
+        points2d = frame_view_markers[view_avaliable, :]
+        
+        # print(points2d)
+
+        r = self.r[view_avaliable]
+        t = self.t[view_avaliable]
+        K = self.K[view_avaliable]
+        RDist = self.RDist[view_avaliable]
+        TDist = self.TDist[view_avaliable]
+
+        point_3d = triangulateMultiview(points2d, r, t, K, RDist, TDist)
+        self.joints3d[self.frame, self.current_joint_idx, :] = point_3d
+
+        # print("the 3D joint position: ", point_3d)
+        return True
+
+
+    # reproject the 3D joint to the views
+    # TODO: check the function
+    # the reprojection is using opencv projectPoints function
+    def reproject_joints(self, ):
+        if self.current_joint is None:
+            print("Please select a joint first")
+            return False
+        # 
+        reprojected_points = reprojectToViews(self.joints3d[self.frame, self.current_joint_idx],
+                                             self.r, self.t, self.K, self.RDist, self.TDist, self.view_num) 
+        for i, animator in enumerate(self.video_animators):
+            animator.set_marker_2d(reprojected_points[i], self.frame, self.current_joint_idx, reprojection=True)
+        return True
+    
+
+    def save_labels(self, ):        # 
+        # save the labeled 3D joints and the original 2D points, will overwrite when save again
+        # name the saved files
+        joints3d = np.array(self.joints3d)
+        labeled_points = np.array(self.labeled_points)
+
+        # save the data
+        np.save(os.path.join(self.save_path, "joints3d.npy"), joints3d)
+        np.save(os.path.join(self.save_path, "labeled_points.npy"), labeled_points)
         return
 
 
-    @staticmethod
-    def triangulateMultiview(pointTrack, cameraPoses, intrinsics):
-        # Triangulate points from multiple views
-        # use a for loop to deal with each view
+    def closeEvent(self, event):
+        for i, animator in enumerate(self.video_animators):
+            self.labeled_points[i, self.frame] = np.array(animator.get_all_original_marker_2d())
+            animator.close()
+        self.save_labels()
+        event.accept()
+        return
+
+
+# triangulate
+# def 
+def triangulateMultiview(points2d, r, t, K, RDist, TDist):
+    cam_points = []
+    for i in range(len(points2d)):
+        the_K = K[i]
+        # the_K[0, 1] = 0         # set the skew to 0
+        point = np.array(points2d[i], dtype=np.float32).reshape(-1, 1, 2)
+
+        # TODO: check skip the undistort, it is fine
+        dist_vec = np.array([RDist[i][0][0], RDist[i][0][1], TDist[i][0][0], TDist[i][0][1], RDist[i][0][2]])
+        undistort_point = cv2.undistortPoints(point, the_K, dist_vec, P=the_K)
         
-        return 
-    
-    
-# helper functions for triangulation   
-def rotationMatrixToVector(R):
-    # convert rotation matrix to rotation vector
-    # inputs: R - 3x3 rotation matrix
-    # outputs: rVec - 3x1 rotation vector
-    rVec = cv2.Rodrigues(R)[0]
-    return rVec
+        # TODO: check the undistort, it is fine too, but the error is quite large, recalibrate the camera intrinsic
+        pixel_coords = np.array([undistort_point[0][0][0], undistort_point[0][0][1], 1])
+        inv_K = np.linalg.inv(the_K)
+        cam_point = np.dot(inv_K, pixel_coords)   
 
+        cam_points.append(cam_point[:2])
+        # check the undist format 
 
+    # triangulate the points
+    cam_points = np.array(cam_points)
 
-
-
-# the triangulate function
-def triangulateMultiview(pointTrack, cameraPoses, intrinsics):
-    # the point after intrinsics
-    # point track: 2D points (points pos from scene) for a given joint of all views. SHAPE: (#cams, 2)
-    # cameraPoses: camera poses for all views (rotation and translation). SHAPE: (#cams, (3, 3), (3, 1))    # TODO: CHECK THE SHAPE
-        # cameraPoses should saved in a dictor or a tuple
-    # intrinsics: camera intrinsics for all views. SHAPE: (#cams, 3, 3)
-    
-    assert len(pointTrack) == len(cameraPoses) == len(intrinsics), "The number of cameras should be the same"
-
-    # get the point after intrinsics
-    points2d = []
-    for i in range(len(pointTrack)):
-        points2d.append(cv2.undistortPoints(pointTrack[i], intrinsics[i], None))        # ??
-
-    # calculate the 3D points
     A = []
-    for point, cameraPose in zip(points2d, cameraPoses):
-        point_array = np.array([point[0], point[1], 1])
-        projection_matrix = np.array([cameraPose[0], cameraPose[1], cameraPose[2]])     # projection matrix = [R | t], R is 3x3, t is 3x1, so the shape is (3, 4)
+    for i in range(len(r)):
+        P = np.hstack((r[i], t[i].T))       # shape: (3, 4)  # there is a transpose, stack the P matrix here
+        A.append(np.vstack((cam_points[i][0] * P[2, :] - P[0, :],
+                            cam_points[i][1] * P[2, :] - P[1, :])))
 
-    the_matrix = np.dot(np.transpose)
+    A = np.array(A)
+    A = np.concatenate(A, axis=0)
 
-    # USE eignvalue and eignvector to get x, y, z
-        
+    # SVD method to solve the hyper define problem
+    _, _, V = np.linalg.svd(A)
+    point_3d = V[-1, :]             # find the largest eign value vector
+    point_3d = point_3d / point_3d[-1]
+    return point_3d[:3]
 
 
-    xyzPoints = []
-    return xyzPoints
+# reprojection
+def reprojectToViews(points3d, r, t, K, RDist, TDist, view_num):
+    rvec = []
+    for i in range(view_num):
+        rvec.append(cv2.Rodrigues(r[i])[0])        # transfer the rotation vector into rotation matrix
 
+    reprojected_points = []
+    for i in range(view_num):
+        the_K = K[i]
+        # the_K[0, 1] = 0         # set the skew to 0
+        dist_coef = np.array([RDist[i][0][0], RDist[i][0][1], TDist[i][0][0], TDist[i][0][1], RDist[i][0][2]])
+        reprojected_point, _ = cv2.projectPoints(points3d, rvec[i], t[i], the_K, dist_coef)      # dist_coef
+        reprojected_points.append(reprojected_point)
+
+    reprojected_points = np.array(reprojected_points).squeeze()
+    # print("the reprojected points: ", reprojected_points.shape)
+    return reprojected_points
+
+
+############################################################################################################

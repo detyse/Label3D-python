@@ -7,4 +7,14 @@ skeleton_path: D:\YL_Wang\Label3d\utils\skeletons\test.json
 
 frame_num2label: 100
 
-video_folder: d:\YL_Wang\_personal\temp\24-03-13\video
+# video_folder: d:\YL_Wang\_personal\temp\24-03-13\video
+
+video_paths: 
+  - d:\YL_Wang\_personal\temp\24-03-13\videos\Camera1\1.avi   # , D:\YL_Wang\Label3d\data_for_test\2024-05-25 calibration\Camera_FDQ22080536\0.mp4
+  - d:\YL_Wang\_personal\temp\24-03-13\videos\Camera2\1.avi   # , D:\YL_Wang\Label3d\data_for_test\2024-05-25 calibration\Camera_FDQ22080537\0.mp4
+  - d:\YL_Wang\_personal\temp\24-03-13\videos\Camera3\1.avi
+  - d:\YL_Wang\_personal\temp\24-03-13\videos\Camera4\1.avi
+  - d:\YL_Wang\_personal\temp\24-03-13\videos\Camera5\1.avi
+  - d:\YL_Wang\_personal\temp\24-03-13\videos\Camera6\1.avi
+
+video_folders: 1

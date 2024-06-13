@@ -10,7 +10,7 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 
-from utils.utils import Loader, read_json_skeleton
+from utils.utils import read_json_skeleton
 from animator.animator_v2 import Animator, VideoAnimator
 
 
@@ -24,7 +24,7 @@ class Label3D(Animator):
 
     loader: Loader, the loader object, containing all the inputs, including camParams, videos, skeleton_path, and pick_frames.
     '''
-    def __init__(self, camParams=None, videos=None, skeleton_path=None, loader=None, *args, **kwargs):
+    def __init__(self, camParams=None, videos=None, skeleton_path=None, frame_num2label=None, loader=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         assert (camParams is not None and videos is not None and skeleton_path is not None) or loader is not None, "Either loader or camParams, videos, and skeletons must be provided"
         if loader:
@@ -35,6 +35,7 @@ class Label3D(Animator):
             self.camParams = camParams
             self.videos = videos
             self.skeleton = read_json_skeleton(skeleton_path)
+            self.label_num = frame_num2label
         assert len(self.camParams) == len(self.videos), "The number of cameras and videos must be the same"
      
         self._unpack_camParams()      # get settings from params
@@ -63,6 +64,7 @@ class Label3D(Animator):
         self.RDist = np.array(RDist)
         self.TDist = np.array(TDist)
 
+
     def _init_property(self, ):
         for video in self.videos:
             assert os.path.exists(video), f"Video {video} does not exist"
@@ -79,6 +81,9 @@ class Label3D(Animator):
 
         self.joints3d = np.full((self.nFrames, len(self._joint_names), 3), np.nan)
 
+        # add original label points saving (not reprojected points) 
+        self.labeled_3d = np.full((self.nFrames, len(self._joint_names), ), np.nan)
+
 
     def _initGUI(self, ):        # get animators 
         self.setCursor(Qt.ArrowCursor)
@@ -90,11 +95,11 @@ class Label3D(Animator):
         left_layout = QVBoxLayout()
         main_layout = QHBoxLayout()
 
-        self.joint_button = {}
+        self.joint_button = {}      # dict to store the joint buttons
 
         for joint in self._joint_names:
             button = QRadioButton(joint, side_bar)      # set parent to side_bar?
-            self.joint_button[joint] = button
+            self.joint_button[joint] = button           # index of the button is joint name / change to joint index?
             button.clicked.connect(self.button_select_joint)
             left_layout.addWidget(button)
 
@@ -114,13 +119,15 @@ class Label3D(Animator):
 
         self.setLayout(main_layout)
 
+
     def _set_animators(self, ):
         video_animators = []
-        for video in self.videos:
-            animator = VideoAnimator(video, self.skeleton)
+        for video in self.videos:           # here video should be a list to store the video paths
+            animator = VideoAnimator(video, self.skeleton, self.label_num)      # see the load video method
             animator.setParent(self)        # 
             video_animators.append(animator)
         return video_animators
+
 
     def _set_views_position(self, nViews=None):
         if nViews is None:
@@ -136,6 +143,7 @@ class Label3D(Animator):
                 pos[i, :] = [row, col]
         return pos
         
+
     def align_animators(self, ):
         self.video_animators = self._set_animators()
         
@@ -151,6 +159,7 @@ class Label3D(Animator):
         # TODO: should use restrict function to update the frame property
         # reset
 
+
     ## methods used to handle the GUI
     def button_select_joint(self, ):
         button_joint = self.sender().text()
@@ -162,6 +171,7 @@ class Label3D(Animator):
 
         # next frame, temporarily use the key F, will use the arrow Right key later
         if event.key() == Qt.Key_F:
+            print("f is pressed")
             if self.frame < self.nFrames - 1:
                 self.frame += self.frameRate
             else: self.frame = self.nFrames - 1
@@ -186,11 +196,12 @@ class Label3D(Animator):
         
         # triangulate the 3D joint
         elif event.key() == Qt.Key_T:
+            print("t is pressed")
             if self.triangulate_joints():
                 # reproject the 3D joint to the views
                 self.reproject_joints()
 
-        
+
     ## methods to update the states of the GUI
     def update_joint(self, input=None):
         print("update joint")
@@ -198,9 +209,9 @@ class Label3D(Animator):
             self.current_joint_idx = None
             self.current_joint = None
             # turn off all the buttons
-            for button in self.joint_button.values():       # self.joint_button is a dict
+            for button in self.joint_button.itervalues():       # self.joint_button is a dict
                 button.setChecked(False)
-        
+
         else:
             if isinstance(input, int):
                 assert input < len(self._joint_names) and input >= 0, f"Index {input} is out of range"
@@ -213,13 +224,16 @@ class Label3D(Animator):
                 self.current_joint_idx = self._joint_names.index(input)
         
             self.joint_button[self.current_joint].setChecked(True)
+            # update the joint state
         
         for animator in self.video_animators:
             animator.set_joint(self.current_joint_idx)
 
+
     def update_frame(self, ):
         for animator in self.video_animators:
             animator.update_frame(self.frame)
+
 
     def triangulate_joints(self, ):         # triangulate the current frame current joint 2D points
         if self.current_joint is None:
@@ -250,6 +264,7 @@ class Label3D(Animator):
 
         return True
 
+
     def reproject_joints(self, ):
         if self.current_joint is None:
             print("Please select a joint first")    # will not happen
@@ -259,15 +274,14 @@ class Label3D(Animator):
         for i, animator in enumerate(self.video_animators):         # animators are corresponding to the views. TODO: make sure the order is correct
             animator.set_marker_2d(reprojected_point[i], self.frame, self.current_joint_idx)           # the params could ignore
 
-    def animator_key_press(self, ):
-        pass
+    # def animator_key_press(self, ):
+    #     pass
 
 ## utils
 # ref: https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
 # ref: https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html
 # ref: https://gutsgwh1997.github.io/2020/03/31/%E5%A4%9A%E8%A7%86%E5%9B%BE%E4%B8%89%E8%A7%92%E5%8C%96/
 def triangulateMultiview(points2d, r, t, K, RDist, TDist):
-    # 
     # print(f"points2d: {points2d.shape}, r: {r.shape}, t: {t.shape}, K: {K.shape}, RDist: {RDist.shape}, TDist: {TDist.shape}")
     undist = []
     for i in range(len(points2d)):
@@ -276,7 +290,8 @@ def triangulateMultiview(points2d, r, t, K, RDist, TDist):
         the_K[0, 1] = 0
         point = points2d[i]
         dist_vec = np.array([RDist[i][0][0], RDist[i][0][1], TDist[i][0][0], TDist[i][0][1], RDist[i][0][2]])
-        undistort_point = cv2.undistortPoints(point, the_K, dist_vec)
+        undistort_point = cv2.undistortPoints(point, the_K, dist_vec) 
+        # get rid of the intrinsic influence
         undist.append(undistort_point)
     undist = np.array(undist)       # shape: (len, 1, 1, 2)
     undist = undist.squeeze()       # shape: (len, 2)
