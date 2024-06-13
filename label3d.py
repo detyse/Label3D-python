@@ -13,7 +13,7 @@ from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 
 from utils.utils import read_json_skeleton, LoadYaml
-from animator.animator_v2 import Animator, VideoAnimator
+from animator.animator import Animator, VideoAnimator
 
 
 # is a GUI for manual labeling of 3D keypoints in multiple cameras.

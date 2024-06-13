@@ -7,9 +7,9 @@ from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 
 from utils.utils import read_json_skeleton
-from animator.animator_v2 import VideoAnimator
+from animator.animator import VideoAnimator
 
-from label3d_v2 import Label3D
+from label3d import Label3D
 
 
 PARAMS_PATH = r""  # here put the path of params, in the format of label3d.  eg. r"D:\Projects\Label3D-python\Data\xxx.mat"
