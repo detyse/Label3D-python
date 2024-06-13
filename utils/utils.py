@@ -22,7 +22,8 @@ def transform_mat_to_json_skeleton(mat_file, save_file):
     with open(save_file, 'w') as f:
         json.dump({'color': color.tolist(), 'joint_names': joint_names, 'joints_idx': joints_idx.tolist()}, f, indent=4)
     # return mat
-        
+
+
 def read_json_skeleton(json_file):
     with open(json_file, 'r') as f:
         data = json.load(f)
@@ -136,20 +137,19 @@ class LoadYaml:
 
     def unpack_cam_params(self, ):
         cam_params = loadmat(self.data["cam_params"])['params']
-
+          
         load_camParams = []
         for i in range(len(cam_params)):
             load_camParams.append(cam_params[i][0])
 
         return load_camParams
-    
+        
     # how to make sure the alignment of the order?
     # use integer index 
-    def get_videos_from_video_folder(self, ):
+    def get_videos_from_video_folder(self, ):       
         video_folder = self.data["video_folder"]
         # get the subfolders 
         video_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
-        # print(video_folders)
 
         # get the video paths of all the videos
         video_paths = []        # add all the video then reverse the order

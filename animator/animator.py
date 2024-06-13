@@ -3,6 +3,7 @@
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QWheelEvent
 import cv2
 import numpy as np
+import os
 
 from PySide6.QtWidgets import *
 from PySide6.QtCore import *
@@ -38,9 +39,7 @@ class Animator(QWidget):  # inherit from QWidget
 class Keypoint3DAnimator(Animator):
     def __init__(self, ):
         super().__init__()
-        self.lim = 1
-        self.frame = 1
-        self.frameRate = 1
+
 
 
 ## TODO: add the scale factor for currect the transformation 
@@ -88,23 +87,6 @@ class VideoAnimator(Animator):
         self.update_frame()
         self._initView()
 
-        self._scale_factor = 1.0
-
-
-    # def read_video(self, video_path=None):      # 
-    #     if video_path is None:
-    #         video_path = self.video_paths
-    #     cap = cv2.VideoCapture(video_path)
-    #     frames = []
-    #     while cap.isOpened():
-    #         ret, frame = cap.read()
-    #         if not ret:
-    #             break
-    #         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    #         frames.append(rgb_frame)
-    #     cap.release()
-    #     return frames
-    
     
     # consider of just output a list of frames, we just using a function to do the job
     def load_videos(self, video_file_list, label_num):
@@ -116,33 +98,66 @@ class VideoAnimator(Animator):
         comment: pretty slow to load the video,
                     test the other method. *grab and retrieve*
         '''
-        frame_num_list = []
-        frame_index_list = []
-        frames = []
-        for video_file in video_file_list:
-            cap = cv2.VideoCapture(video_file)
-            frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            frame_num_list.append(frame_num)
+        '''
+        add a new condition to load image data as frames for labeling
+        '''
+        # get the file type, if the file is a directory, then load the images
+        if os.path.isdir(video_file_list[0]):
+            frames = []
+            for image_folder in video_file_list:
+                image_list = os.listdir(image_folder)
+                image_list.sort()
+                for image_file in image_list:
+                    frame = cv2.imread(image_file)
+                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    frames.append(rgb_frame)
 
-            if label_num == 0 or label_num > frame_num:
-                label_num = frame_num
-
-            indexes = np.linspace(0, frame_num-1, label_num, dtype=int)
-            frame_index_list.append(indexes)
-
-            # if the frame number is index, then get the frame
-            for index in indexes:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, index)
-
-                ret = cap.grab()
-                if not ret:
-                    break
-                ret, frame = cap.retrieve()
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                
-                frames.append(rgb_frame)
-            cap.release()
+            print(f"load image frame number {len(frames)}")
+            return frames
+        
+        # else if the file ends with npy, then load the frames
+        elif video_file_list[0].endswith(".npy"):
+            frames = None
+            for npy_file in video_file_list:
+                frame = np.load(npy_file)
+                if frames is None:
+                    frames = frame
+                else:
+                    frames = np.concatenate((frames, frame), axis=0)
             
+            frames = list(frames)
+            print(f"load npy frame number {len(frames)}")
+            return frames
+
+        # else if the file ends with mp4 or avi, then load the video
+        elif video_file_list[0].endswith(".mp4") or video_file_list[0].endswith(".avi"):
+            frame_num_list = []
+            frame_index_list = []
+            frames = []
+            for video_file in video_file_list:
+                cap = cv2.VideoCapture(video_file)
+                frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                frame_num_list.append(frame_num)
+                
+                if label_num == 0 or label_num > frame_num:
+                    label_num = frame_num
+
+                indexes = np.linspace(0, frame_num-1, label_num, dtype=int)
+                frame_index_list.append(indexes)
+
+                # if the frame number is index, then get the frame
+                for index in indexes:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, index)
+
+                    ret = cap.grab()
+                    if not ret:
+                        break
+                    ret, frame = cap.retrieve()
+                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)      # 
+                    
+                    frames.append(rgb_frame)
+                cap.release()
+                
             print(f"load video frame number {len(frames)}")
         return frames
 
@@ -152,6 +167,7 @@ class VideoAnimator(Animator):
         self.setMouseTracking(True)
         self.setCursor(Qt.ArrowCursor)
         super().initUI()
+
 
     def _initView(self, ):      # TODO: inhibit the scroll move, move the view to the 
         # set the QGraphicsView to show the frame

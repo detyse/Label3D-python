@@ -4,6 +4,7 @@
 # and we add the original label saving funtion 
 # also add the video 
 # add we test our videos and the params
+# update: load the video frames at the first place, do not nest the loader in to deeper layer
 
 import os
 import sys
@@ -82,7 +83,7 @@ class ConfigWidget(QWidget):
         layout = QVBoxLayout(self)
         self.setLayout(layout)
         
-        # TODO: change to grid layout
+        # TODO: change to grid layout for a better look
         # 
 
         # video folder path
@@ -243,7 +244,7 @@ class MainWindow(QMainWindow):
         self.params = params
         self.camParams = params['cam_params']
         self.videos = params['video_folder']
-        # print(self.videos)
+        print(self.videos)
         self.skeleton_path = params['skeleton_path']
         self.frame_num2label = params['frame_num2label']
         self.save_path = params['save_path']
@@ -314,65 +315,3 @@ if __name__ == "__main__":
     app = MainApplication(sys.argv)
     sys.exit(app.exec())
 
-# if __name__ == "__main__":
-    # set params here
-#     PARAMS_PATH = r"d:\YL_Wang\_personal\temp\24-03-13\Cylinder_smallFOV_20230719_Label3D_dannce.mat"
-    
-#     cam_params = loadmat(PARAMS_PATH)['params']
-
-#     frame2label = 100   # frame number when to label
-
-#     load_camParams = []
-#     for i in range(len(cam_params)):
-#         load_camParams.append(cam_params[i][0])
-
-#     # path 
-#     VIDEO_PATHS = [
-#                 r"d:\YL_Wang\_personal\temp\24-03-13\videos\Camera1\1.avi",
-#                 r"d:\YL_Wang\_personal\temp\24-03-13\videos\Camera2\1.avi",
-#                 r"d:\YL_Wang\_personal\temp\24-03-13\videos\Camera3\1.avi",
-#                 r"d:\YL_Wang\_personal\temp\24-03-13\videos\Camera4\1.avi",
-#                 r"d:\YL_Wang\_personal\temp\24-03-13\videos\Camera5\1.avi",
-#                 r"d:\YL_Wang\_personal\temp\24-03-13\videos\Camera6\1.avi"]
-
-#     SKELETON_PATH = r"D:\YL_Wang\Label3d\utils\skeletons\test.json"
-
-#     app = QApplication([])
-#     window = MainWindow(camParams=load_camParams, videos=VIDEO_PATHS, skeleton_path=SKELETON_PATH, loader=None)
-#     window.show()
-#     app.exec()
-
-
-# test the calibration params first
-# new entry
-# if __name__ == "__main__":
-#     app = QApplication(sys.argv)
-
-#     configDialog = LoadConfigDialog()
-#     if configDialog.exec():
-#         config_path = configDialog.getConfigPath()
-#         if config_path:
-#             loader = LoadYaml(config_path)
-#             params = loader.get_all_params()
-#             mainWindow = MainWindow(params=params)
-#             mainWindow.show()
-#             sys.exit(app.exec())
-#         else:
-#             QMessageBox.warning(None, "Configuration Error", "No configuration loaded.")
-#             sys.exit(1)
-#     else:
-#         sys.exit()
-
-
-    # if configDialog.exec():  # This will show the dialog and wait
-    #     config_path = configDialog.getConfigPath()
-    #     # Here you can load the actual configuration if not done within the dialog
-    #     loader = LoadYaml(config_path)
-    #     mainWindow = MainWindow(params=loader)  # Pass the actual loaded configurations
-    #     mainWindow.show()
-    # else:
-    #     sys.exit()  # Exit if configuration was not loaded
-
-    # sys.exit(app.exec())
-
-    

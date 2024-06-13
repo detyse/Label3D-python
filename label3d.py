@@ -23,13 +23,12 @@ class Label3D(Animator):
         # assert
         self.camParams = camParams          # the camera parameters
         self.videos = videos
+        print(f'label3d videos format: {self.videos}')
         self.skeleton = read_json_skeleton(skeleton)
         self.label_num = frame_num2label
 
         self.save_path = save_path
 
-        # print(len(self.camParams), len(self.videos))
-        # print(self.videos)
         assert len(self.camParams) == len(self.videos)
         self.view_num = len(self.camParams)
 
