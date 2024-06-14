@@ -252,7 +252,7 @@ class MainWindow(QMainWindow):
         self.args = args
         self.kwargs = kwargs
         self.initUI()
-
+   
 
     def initUI(self, ):
         self.setWindowTitle("3D Labeling Tool")
