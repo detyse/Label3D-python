@@ -18,5 +18,3 @@ class Skeleton:
     def __post_init__(self, json_file):
         pass
     
-        
-

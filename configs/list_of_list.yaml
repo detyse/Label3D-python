@@ -1,0 +1,10 @@
+# this is the configuration file for label3d
+
+cam_params_path: D:\YL_Wang\Label3d\data_for_test\2024-05-25 calibration\dannce_format_camera_params.mat
+# the camera calibration parameters have the same format as the ones used in dannce
+
+skeleton_path: D:\YL_Wang\Label3d\utils\skeletons\test.json
+
+frame_num2label: 10
+
+video_folder: D:\YL_Wang\Label3d\video_folder
