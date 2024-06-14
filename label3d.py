@@ -38,6 +38,7 @@ class Label3D(Animator):
         
         self._initGUI()
 
+        self._load_labels()
 
     def _unpack_camParams(self, ):
         r = []
@@ -86,6 +87,14 @@ class Label3D(Animator):
         self.labeled_points = np.full((self.view_num, self.nFrames, len(self._joint_names), 2), np.nan)     # NOTE: data to be saved
         # how to get the original point position from the animator?
         
+        if os.path.exists(os.path.join(self.save_path, "joints3d.npy")):
+            print("Loading existing labels")
+            self.joints3d = np.load(os.path.join(self.save_path, "joints3d.npy"))
+            
+        if os.path.exists(os.path.join(self.save_path, "labeled_points.npy")):
+            print("Loading existing original labels")
+            self.labeled_points = np.load(os.path.join(self.save_path, "labeled_points.npy"))
+
 
     def _initGUI(self, ):
         self.setCursor(Qt.ArrowCursor)
@@ -151,6 +160,14 @@ class Label3D(Animator):
         return pos
     
 
+    def _load_labels(self, ):
+        # load the self.joints3d to animators
+        views_frames_markers = self.reproject_for_load()
+        for i, animator in enumerate(self.video_animators):
+            animator.load_labels(views_frames_markers[i], self.labeled_points[i])
+        return True
+
+
     def frame_align_with_animators(self, ):
         self.video_animators = self._set_animators()
 
@@ -191,15 +208,15 @@ class Label3D(Animator):
             else: self.frame = 0
             self.update_frame()
         
-        # switch joint
-        elif event.key() == Qt.Key_Tab:
-            print("tab is pressed")
-            if self.current_joint_idx is None:
-                self.update_joint(0)
-            elif self.current_joint_idx < len(self._joint_names) - 1:
-                self.update_joint(self.current_joint_idx + 1)
-            else:
-                self.update_joint(0)
+        # # switch joint
+        # elif event.key() == Qt.Key_Tab:
+        #     print("tab is pressed")
+        #     if self.current_joint_idx is None:
+        #         self.update_joint(0)
+        #     elif self.current_joint_idx < len(self._joint_names) - 1:
+        #         self.update_joint(self.current_joint_idx + 1)
+        #     else:
+        #         self.update_joint(0)
         
         # triangulate the 3D joint
         elif event.key() == Qt.Key_T:
@@ -285,6 +302,22 @@ class Label3D(Animator):
 
         # print("the 3D joint position: ", point_3d)
         return True
+
+
+    def reproject_for_load(self, ):
+        # reproject the 3d points to views at once
+        views_frames_markers = np.full((self.view_num, self.nFrames, len(self._joint_names), 2), np.nan) 
+        for k, frame_points in enumerate(self.joints3d):        # hopefully be the frames index
+            if np.isnan(frame_points).all():
+                continue
+            for i in range(len(self._joint_names)):
+                if np.isnan(frame_points[i]).all():
+                    continue
+                point3d = frame_points[i]
+                for j, animator in enumerate(self.video_animators):
+                    reprojected_points = reprojectToViews(point3d, self.r, self.t, self.K, self.RDist, self.TDist, self.view_num)
+                    views_frames_markers[j, k, i] = reprojected_points[j]
+        return views_frames_markers
 
 
     # reproject the 3D joint to the views

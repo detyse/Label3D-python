@@ -177,6 +177,11 @@ class VideoAnimator(Animator):
         layout.addWidget(self.view)
         self.setLayout(layout)
 
+    def load_labels(self, frames_markers, original_markers):
+        self.frames_markers = frames_markers
+        self.original_markers = original_markers
+        self.update_frame()
+
     ## 
     def set_joint(self, joint_idx):
         self.f_current_joint_idx = joint_idx
