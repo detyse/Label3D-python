@@ -267,6 +267,8 @@ class Label3D(Animator):
             # collect the original labeled points
             self.labeled_points[i, self.frame] = np.array(animator.get_all_original_marker_2d())
 
+        self.save_labels()
+
 
     # TODO: check the function
     def triangulate_joints(self, ):         # called when T is pressed
@@ -344,7 +346,9 @@ class Label3D(Animator):
         # save the data
         np.save(os.path.join(self.save_path, "joints3d.npy"), joints3d)
         np.save(os.path.join(self.save_path, "labeled_points.npy"), labeled_points)
-        return
+
+        print("data saved")
+        return True
 
 
     def closeEvent(self, event):

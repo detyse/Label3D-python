@@ -388,10 +388,10 @@ class VideoAnimator(Animator):
             # get the true position in the view
             view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
             scene_pos = self.view.mapToScene(view_pos)
-            print(f"mouse position in the view: {view_pos.x()}, {view_pos.y()}")
+            # print(f"mouse position in the view: {view_pos.x()}, {view_pos.y()}")
             # pos = self.view.mapToScene(pos)     # get the position
             self.plot_marker_and_lines([scene_pos.x(), scene_pos.y()], reprojection=False)                  # plot the marker       # 
-            print(f"mouse press point position: {scene_pos.x()}, {scene_pos.y()}")
+            # print(f"mouse press point position: {scene_pos.x()}, {scene_pos.y()}")
             # print("Current transformation matrix:", self.view.transform())
         elif event.button() == Qt.RightButton and event.modifiers() == Qt.ControlModifier:
             pos = event.pos()
@@ -449,9 +449,9 @@ class SceneViewer(QGraphicsView):
         if event.button() == Qt.LeftButton and event.modifiers() != Qt.ControlModifier:
             self._dragging = True
             self._drag_start_pos = event.pos()
-            print("drag start position: ", self._drag_start_pos.x(), self._drag_start_pos.y())
+            # print("drag start position: ", self._drag_start_pos.x(), self._drag_start_pos.y())
             self._transform_start = self.transform()    # save the transform                
-            print("drag transform: ", self._transform_start)
+            # print("drag transform: ", self._transform_start)
             # self.setCursor(Qt.ClosedHandCursor)
         super().mousePressEvent(event)      # super
 
@@ -483,7 +483,7 @@ class Connection(QGraphicsLineItem):        # the line is not necessarily combin
         self.end_point = end_point
         # print("line points", start_point.scenePos(), end_point.scenePos())
 
-        print(f"type of the points of the line {type(start_point)}, {type(end_point)}")
+        # print(f"type of the points of the line {type(start_point)}, {type(end_point)}")
 
         # self._line = QLineF(start_point.mapToScene(-self.shift, -self.shift), end_point.mapToScene(-self.shift, -self.shift))
         self._line = QLineF(start_point.scenePos(), end_point.scenePos())
