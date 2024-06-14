@@ -120,6 +120,7 @@ class VideoAnimator(Animator):
             frames = None
             for npy_file in video_file_list:
                 frame = np.load(npy_file)
+                print(f"frame shape: {frame.shape}")
                 if frames is None:
                     frames = frame
                 else:

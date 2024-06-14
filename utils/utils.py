@@ -160,9 +160,17 @@ class LoadYaml:
 
             # print(view_dirnames)
             for view in view_dirnames:
-                video_file = os.path.join(video_folder, folder, view, "0.mp4")
-                video_files.append(video_file)
+                # if os.listdir(os.path.join(video_folder, folder, view)).endwith(".mp4"):
+                #     video_file = os.path.join(video_folder, folder, view, "0.mp4")
+                #     video_files.append(video_file)
+                # elif os.listdir(os.path.join(video_folder, folder, view)).endwith(".npy"):
+                #     video_file = os.path.join(video_folder, folder, view)
+                #     video_files.append(video_file)
             
+                video_file = os.listdir(os.path.join(video_folder, folder, view))[0]
+                video_file = os.path.join(video_folder, folder, view, video_file)
+                video_files.append(video_file)
+
             video_paths.append(video_files)
     
         # transpose the list of list
