@@ -1,4 +1,7 @@
 # animator for video display
+# NOTE for bug fix: the app will crash at some situation, likely to be the joint index error, 
+# so do not change the joint index in the animator class, 
+# just change the joint index and frame index in the label3d, by calling the set_joint method and update_frame method
 
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QWheelEvent
 import cv2
@@ -41,7 +44,6 @@ class Keypoint3DAnimator(Animator):
         super().__init__()
 
 
-
 ## TODO: add the scale factor for currect the transformation 
 class VideoAnimator(Animator):                  
     def __init__(self, video_paths, skeleton, label_num):
@@ -61,10 +63,11 @@ class VideoAnimator(Animator):
         self._joint_names = skeleton["joint_names"]
         self._joints_idx = skeleton["joints_idx"]        # the connection of joints, joints are indicated by index + 1
         self._color = skeleton["color"]              # the color of the joints
-        self.joints_num = len(self._joint_names)        # total number of joints
-        
+        self._joints_num = len(self._joint_names)        # total number of joints
+        # NOTE: THESE PROPERTIES SHOULD NOT BE CHANGED IN THE CLASS, JUST FOR READ
+
         # on this frame, f for only in this frame
-        self.f_current_joint_idx = None
+        self.f_current_joint_idx = None         # the current joint index
         self.f_exist_markers = []           # a list of joints idx indicating the joints on this frame       
         self.f_joints2markers = {}            # a dict map the joint name to the marker on this frame
         # will these change after reprojection? if not we could update the frame after the reprojection
@@ -76,7 +79,8 @@ class VideoAnimator(Animator):
         # check the last mouse press event position and update the value
 
         # d for data, constant for item data saving
-        # self.d_joint_name = 0
+        # the index for save the data in the item
+        # NOTE: constant variable 
         self.d_joint_index = 0
         self.d_lines = 1
 
@@ -84,7 +88,7 @@ class VideoAnimator(Animator):
         self.marker_size = 10       # the size of the point
 
         self.initUI()
-        self.update_frame()
+        # self.update_frame()         # not call in this class, for a better control  # called by the load_labels in label3d
         self._initView()
 
     
@@ -177,34 +181,36 @@ class VideoAnimator(Animator):
         layout.addWidget(self.view)
         self.setLayout(layout)
 
+
     def load_labels(self, frames_markers, original_markers):
         self.frames_markers = frames_markers
         self.original_markers = original_markers
-        self.update_frame()
+        self.update_frame()         # update the frame after the labels are loaded
 
-    ## 
+
+    def clear_marker_2d(self, ):
+        self.frames_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
+        self.original_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
+        self.delete_marker()
+
+
+    ## only called by label3d, to sync rt
     def set_joint(self, joint_idx):
         self.f_current_joint_idx = joint_idx
 
 
-    def set_marker_2d(self, pos, frame=None, joint_idx=None, reprojection=False):       # the params are unnecessary
-        # if frame is not None:
-        #     self.update_frame(frame)
-
-        if joint_idx is not None:
-            self.set_joint(joint_idx)
-
+    def set_marker_2d(self, pos, reprojection=False):       # the params are unnecessary
         self.plot_marker_and_lines(pos, reprojection=reprojection)
+        return True
 
 
-    def get_marker_2d(self, frame=None, joint_idx=None):
-        # if frame is not None:
-        #     self.update_frame(frame)
-
-        if joint_idx is not None:
-            self.set_joint(joint_idx)
-
-        return self.frames_markers[self.frame, self.f_current_joint_idx]
+    def get_marker_2d(self, frame=None, joint_idx=None):          # will not change the data, should be safe 
+        if frame is None and joint_idx is None:
+            return self.frames_markers[self.frame, self.f_current_joint_idx]
+        elif frame is None or joint_idx is None:
+            raise ValueError("frame and joint index should be both set or not set")
+        else:
+            return self.frames_markers[frame, joint_idx]
     
 
     def get_all_original_marker_2d(self, ):         # return the original labeled markers of current frame
@@ -220,10 +226,13 @@ class VideoAnimator(Animator):
             
             self.frame = frame_ind
         
+        # 
+
         # clear the scene, but the view would not change
         self.scene.clear()
 
         # make sure all the f start properties are reset
+        # update the frame params in the f properties
         self.f_current_joint_idx = None
         self.f_exist_markers = []
         self.f_joints2markers = {}
@@ -235,48 +244,32 @@ class VideoAnimator(Animator):
         q_image = QImage(current_frame.data, width, height, bytesPerLine, QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(q_image)
 
-        # check the view size
-        # print(f"view size: {self.view.size()}")
-
-        # resize the image to fit the view
-        # pixmap = pixmap.scaled(self.view.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-
-        # check the pixmap width and height
-        # print(f"pixmap size: {pixmap.width()}, {pixmap.height()}")
-
         self.scene.addPixmap(pixmap)
 
         # get the scene rect 
         the_rect = self.scene.sceneRect()
         self.view.fitInView(the_rect, Qt.KeepAspectRatio)       # fit the image to the view
 
-        # update the scale factor
-        # self._scale_factor = self.view.transform().m11()
-        # just return the scale factor?
-        # self._scale_factor = self.view.scale()
-
         # plot the labeled joint markers and lines on this frame
-        for i in range(self.joints_num):
+        for i in range(self._joints_num):
             if not np.isnan(self.frames_markers[self.frame, i]).all():
                 pos = self.frames_markers[self.frame, i]
-                self.plot_marker_and_lines(pos, i, reprojection=False)      # update the exist markers
+                self.plot_marker_and_lines(pos, i, reprojection=False)          # update the exist markers
 
         self.scene.update()
 
 
     # this function should be called whenever the marker will change
     # if the marker is not exist, create a new marker; else update the marker
-    # TODO: check the dot pos() and the mouse pos()
-    def plot_marker_and_lines(self, pos, joint_idx=None, reprojection=False):
+    # FIXME: bug in the reset_marker function
+    def plot_marker_and_lines(self, pos, joint_idx=None, reprojection=False):       # the index of the joint is necessary for frame update
         if joint_idx is None:
             if self.f_current_joint_idx is not None:
                 current_index = self.f_current_joint_idx
             else:
-                # just do nothing
                 return
         else:
             current_index = joint_idx
-            # self.f_current_joint_idx = joint_idx      # should not change when frame change
 
         if current_index in self.f_exist_markers:
             self.reset_marker(self.f_joints2markers[current_index], pos)
@@ -305,7 +298,7 @@ class VideoAnimator(Animator):
                     # draw the line
                     the_line = Connection(marker, the_point, the_color)
                     
-                    i_lines = marker.data(self.d_lines)
+                    i_lines = marker.data(self.d_lines)     # should be a list of lines
                     i_lines.append(the_line)
                     marker.setData(self.d_lines, i_lines)
                     
@@ -340,29 +333,31 @@ class VideoAnimator(Animator):
         self.f_joints2markers[current_index] = marker
 
 
+    # FIXME: the QGraphicEllipseItem does not have the updateLine method
     def reset_marker(self, item, new_pos, reprojection=False):
         item.setPos(*new_pos)       # 
 
-        for line in item.data(self.d_lines):
+        for line in item.data(self.d_lines):        # at what situation the do will stored here
             # reset lines
             line.updateLine(item)
         
         # self.f_joints2markers[item.data(self.d_joint_index)] = item
         self.frames_markers[self.frame, self.f_current_joint_idx] = new_pos
+        
         if not reprojection:
             self.original_markers[self.frame, self.f_current_joint_idx] = new_pos
 
 
-    def delete_marker(self, joint_idx=None):
-        if joint_idx is None:
-            if self.f_current_joint_idx is not None:
-                current_index = self.f_current_joint_idx
-            else:
-                # just do nothing
-                return
-        
-        else:
-            current_index = joint_idx
+    # could because the line item did not properly removed
+    # FIXME: bug likely to be caused by the joint index error
+    # when one item is removed, the line and the other item should be updated
+    def delete_marker(self, joint_idx=None):            # this function should be called when the marker will be removed
+        if joint_idx is not None:
+
+
+
+        if self.f_current_joint_idx is not None:
+            current_index = self.f_current_joint_idx
 
         if current_index in self.f_exist_markers:
             # remove the lines
@@ -439,6 +434,7 @@ class SceneViewer(QGraphicsView):
             self.scale(1.1, 1.1)        #  
         else:
             self.scale(0.9, 0.9)
+
 
     def enterEvent(self, event: QEnterEvent) -> None:       # the event to handle the event that the mouse enter the view
         super().enterEvent(event)

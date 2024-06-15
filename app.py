@@ -22,6 +22,7 @@ from utils.utils import read_json_skeleton, LoadYaml
 from label3d import Label3D
 
 from scipy.io import loadmat
+import traceback
 
 
 class LoadConfigDialog(QDialog):
@@ -240,7 +241,7 @@ class ConfigWidget(QWidget):
 
 class MainWindow(QMainWindow):
     def __init__(self, params, *args, **kwargs):
-        super().__init__()
+        super().__init__() 
         self.params = params
         self.camParams = params['cam_params']
         self.videos = params['video_folder']
@@ -311,7 +312,15 @@ class MainApplication(QApplication):
         self.mainWindow.show()
 
 
+def main():
+    try:
+        app = MainApplication(sys.argv)
+        sys.exit(app.exec())
+    except Exception as e:
+        traceback.point_exc()
+        print(e)
+
+
 if __name__ == "__main__":
-    app = MainApplication(sys.argv)
-    sys.exit(app.exec())
+    main()
 

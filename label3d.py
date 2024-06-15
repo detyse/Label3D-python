@@ -40,6 +40,7 @@ class Label3D(Animator):
 
         self._load_labels()
 
+
     def _unpack_camParams(self, ):
         r = []
         t = []
@@ -160,11 +161,15 @@ class Label3D(Animator):
         return pos
     
 
+    # 
     def _load_labels(self, ):
         # load the self.joints3d to animators
         views_frames_markers = self.reproject_for_load()
         for i, animator in enumerate(self.video_animators):
             animator.load_labels(views_frames_markers[i], self.labeled_points[i])
+
+        print(f"self.frame: {self.frame}")
+        # self.update_frame()
         return True
 
 
@@ -229,6 +234,11 @@ class Label3D(Animator):
             print("s is pressed")
             self.save_labels()
 
+        # elif event.key() == Qt.Key_R and QApplication.keyboardModifiers() == Qt.ControlModifier:
+        #     print("Ctrl+R is pressed")
+        #     # clear the current joint
+        #     self.clear_current_joint()
+
 
     ## update the current joint, called by button and key press
     ## could update the button?
@@ -268,6 +278,23 @@ class Label3D(Animator):
             self.labeled_points[i, self.frame] = np.array(animator.get_all_original_marker_2d())
 
         self.save_labels()
+
+
+    # turn the current joint data into nan
+    def clear_current_joint(self, ):
+        if self.current_joint is None:
+            print("Please select a joint first")
+            return False
+        
+        self.joints3d[self.frame, self.current_joint_idx] = np.nan
+        self.labeled_points[:, self.frame, self.current_joint_idx] = np.nan
+
+        # update the frames_markers of each frame
+        for i, animator in enumerate(self.video_animators):
+            animator.clear_marker_2d()          # do not need here to sync the frame and the joint
+
+        self.update_frame()
+        return True
 
 
     # TODO: check the function
@@ -321,7 +348,7 @@ class Label3D(Animator):
                     views_frames_markers[j, k, i] = reprojected_points[j]
         return views_frames_markers
 
-
+    
     # reproject the 3D joint to the views
     # TODO: check the function
     # the reprojection is using opencv projectPoints function
@@ -333,7 +360,7 @@ class Label3D(Animator):
         reprojected_points = reprojectToViews(self.joints3d[self.frame, self.current_joint_idx],
                                              self.r, self.t, self.K, self.RDist, self.TDist, self.view_num) 
         for i, animator in enumerate(self.video_animators):
-            animator.set_marker_2d(reprojected_points[i], self.frame, self.current_joint_idx, reprojection=True)
+            animator.set_marker_2d(reprojected_points[i], reprojection=True)
         return True
     
 
