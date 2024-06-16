@@ -243,7 +243,7 @@ class Label3D(Animator):
     ## update the current joint, called by button and key press
     ## could update the button?
     def update_joint(self, input=None):
-        print("Update joint")
+        print("Update joint: Label3d - update_joint is called")
         if input is None:       # init the joint state
             self.current_joint = None
             self.current_joint_idx = None
@@ -328,7 +328,7 @@ class Label3D(Animator):
 
         point_3d = triangulateMultiview(points2d, r, t, K, RDist, TDist)
         self.joints3d[self.frame, self.current_joint_idx, :] = point_3d
-
+        
         # print("the 3D joint position: ", point_3d)
         return True
 
