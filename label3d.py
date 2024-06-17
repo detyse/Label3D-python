@@ -196,7 +196,7 @@ class Label3D(Animator):
 
     def keyPressEvent(self, event):
         super().keyPressEvent(event)
-
+        
         # next frame, temporarily use the key F, will use the arrow Right key later
         if event.key() == Qt.Key_F:
             print("f is pressed")
@@ -213,15 +213,15 @@ class Label3D(Animator):
             else: self.frame = 0
             self.update_frame()
         
-        # # switch joint
-        # elif event.key() == Qt.Key_Tab:
-        #     print("tab is pressed")
-        #     if self.current_joint_idx is None:
-        #         self.update_joint(0)
-        #     elif self.current_joint_idx < len(self._joint_names) - 1:
-        #         self.update_joint(self.current_joint_idx + 1)
-        #     else:
-        #         self.update_joint(0)
+        # switch joint
+        elif event.key() == Qt.Key_Tab:
+            print("tab is pressed")
+            if self.current_joint_idx is None:
+                self.update_joint(0)
+            elif self.current_joint_idx < len(self._joint_names) - 1:
+                self.update_joint(self.current_joint_idx + 1)
+            else:
+                self.update_joint(0)
         
         # triangulate the 3D joint
         elif event.key() == Qt.Key_T:
@@ -234,10 +234,10 @@ class Label3D(Animator):
             print("s is pressed")
             self.save_labels()
 
-        # elif event.key() == Qt.Key_R and QApplication.keyboardModifiers() == Qt.ControlModifier:
-        #     print("Ctrl+R is pressed")
-        #     # clear the current joint
-        #     self.clear_current_joint()
+        elif event.key() == Qt.Key_R and QApplication.keyboardModifiers() == Qt.ControlModifier:
+            print("Ctrl+R is pressed")
+            # clear the current joint
+            self.clear_current_joint()
 
 
     ## update the current joint, called by button and key press

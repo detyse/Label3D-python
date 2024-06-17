@@ -1,7 +1,5 @@
 # animator for video display
-# NOTE for bug fix: the app will crash at some situation, likely to be the joint index error, 
-# so do not change the joint index in the animator class, 
-# just change the joint index and frame index in the label3d, by calling the set_joint method and update_frame method
+# NOTE: the data stored in the item is immutable, so the data should reset after changing the stored data
 
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QWheelEvent
 import cv2
@@ -28,7 +26,7 @@ class Animator(QWidget):  # inherit from QWidget
         self.speedUp = 5
         self.slowDown = 5
 
-        # 没有 大跨度翻页的需求
+        # 没有 大跨度翻页的需求 暂时
         self.initUI()
 
 
@@ -45,7 +43,7 @@ class Keypoint3DAnimator(Animator):
 
 
 ## TODO: add the scale factor for currect the transformation 
-class VideoAnimator(Animator):                  
+class VideoAnimator(Animator):
     def __init__(self, video_paths, skeleton, label_num):
         super().__init__()
         # load properties from input
@@ -362,189 +360,7 @@ class VideoAnimator(Animator):
                 self.f_exist_markers.remove(joint_idx)
             
             self.scene.update()
-            
-
-    # # this function should be called whenever the marker will change
-    # # if the marker is not exist, create a new marker; else update the marker
-    # # FIXME: bug in the reset_marker function
-    # def plot_marker_and_lines(self, pos, joint_idx=None, reprojection=False):       
-    #     # the index of the joint is necessary for frame update
-    #     if joint_idx is None:
-    #         if self.f_current_joint_idx is not None:
-    #             current_index = self.f_current_joint_idx
-    #         else:
-    #             return
-    #     else:
-    #         current_index = joint_idx
-
-    #     if current_index in self.f_exist_markers:
-    #         print("animator - plot_marker_and_lines called -- reset marker")
-    #         self.reset_marker(self.f_joints2markers[current_index], pos)
-    #         # reset marker here, the behavior and the parameters are not aligned
-    #         # reset marker only reset current joint marker
-    #         return
-        
-    #     try: 
-    #         print("animator - plot_marker_and_lines called -- create marker")
-            
-    #         # set the point
-    #         marker = QGraphicsEllipseItem(int(-self.marker_size//2), int(-self.marker_size//2), self.marker_size, self.marker_size)
-    #         marker.setPos(pos[0], pos[1])
-    #         # print(f"marker position: {pos[0]}, {pos[1]}")
-
-    #         brush = QBrush(color2QColor(self._color[current_index+1]))
-    #         brush.setStyle(Qt.SolidPattern)
-
-    #         marker.setBrush(brush)
-    #         # marker.setFlag(QGraphicsItem.ItemSendsScenePositionChanges, True)
-    #         marker.setData(self.d_joint_index, current_index)
-    #         marker.setData(self.d_lines, [])
-
-    #         print("create marker pass")
-
-    #         self.scene.addItem(marker)
-            
-    #         print("add item pass")
-
-    #         # print information of the item
-    #         print(f"item data: {marker.data(self.d_joint_index)}")
-    #         print(f"item data: {marker.data(self.d_lines)}")
-
-    #         for index, (i, j) in enumerate(self._joints_idx):
-    #             the_color = self._color[index]
-    #             if current_index == i-1:
-    #                 if j-1 in self.f_exist_markers:
-    #                     the_point = self.f_joints2markers[j-1]
-
-    #                     print(f"the point index: {the_point.data(self.d_joint_index)}")
-                        
-    #                     # breakpoint()
-    #                     # the bug stoped here, seems the point have no data 1
-    #                     try:
-    #                         print(f"the point lines: {the_point.data(self.d_lines)}")
-    #                     except Exception as e:
-    #                         print(f"error in the point data: {e}")
-
-    #                     # draw the line
-    #                     the_line = Connection(marker, the_point, the_color)
-                        
-    #                     i_lines = marker.data(self.d_lines)     # should be a list of lines
-    #                     i_lines.append(the_line)
-    #                     marker.setData(self.d_lines, i_lines)
-                        
-    #                     j_lines = the_point.data(self.d_lines)
-    #                     j_lines.append(the_line)
-    #                     the_point.setData(self.d_lines, j_lines)
-                        
-    #                     self.scene.addItem(the_line)
-
-    #             elif current_index == j-1:
-    #                 if i-1 in self.f_exist_markers:
-    #                     the_point = self.f_joints2markers[i-1]
-
-    #                     print(f"the point index: {the_point.data(self.d_joint_index)}")
-    #                     print(f"the point lines: {the_point.data(self.d_lines)}")
-
-    #                     the_line = Connection(the_point, marker, the_color)
-                        
-    #                     i_lines = the_point.data(self.d_lines)
-    #                     i_lines.append(the_line)
-    #                     the_point.setData(self.d_lines, i_lines)
-                        
-    #                     j_lines = marker.data(self.d_lines)
-    #                     j_lines.append(the_line)
-    #                     marker.setData(self.d_lines, j_lines)
-
-    #                     self.scene.addItem(the_line)
-
-    #         print("add lines pass")
-
-    #         # update the exist markers
-    #         self.f_exist_markers.append(current_index)
-
-    #         self.frames_markers[self.frame, current_index] = pos
-    #         if not reprojection:
-    #             self.original_markers[self.frame, current_index] = pos      # 
-
-    #         self.f_joints2markers[current_index] = marker
-            
-    #         # update the scene
-    #         self.scene.update()
-    #         return True
-
-    #     except Exception as e:
-    #         print(f"error in plot_marker_and_lines: {e}")
-    #         return False
-
-
-    # # FIXME: the QGraphicEllipseItem does not have the updateLine method
-    # # 
-    # def reset_marker(self, item, new_pos, reprojection=False):
-    #     print("animator - reset_marker function called")
-    #     item.setPos(*new_pos)       # 
-
-    #     for line in item.data(self.d_lines):        # at what situation the do will stored here
-    #         print("there are lines, update the line")
-    #         # reset lines
-    #         line.updateLine(item)
     
-    #     # delete all the things about the item
-
-    #     # get the joint index from the item data
-    #     joint = item.data(self.d_joint_index)
-
-    #     # self.f_joints2markers[joint] = item       # the reference does not change
-    #     self.frames_markers[self.frame, joint] = new_pos
-        
-    #     if not reprojection:
-    #         self.original_markers[self.frame, joint] = new_pos
-
-    #     print("reset marker pass")
-    #     # update the scene
-    #     self.scene.update()
-    #     return True
-
-
-    # # could because the line item did not properly removed
-    # # FIXME: bug likely to be caused by the joint index error
-    # # when one item is removed, the line and the other item should be updated
-    # # handle the other side of the line
-    # def delete_marker(self, joint_idx=None):            # this function should be called when the marker will be removed
-    #     # this function will return joint idx from the item data
-    #     print("animator - delete_marker function called")
-    #     if joint_idx is None:
-    #         if self.f_current_joint_idx is not None:
-    #             current_index = self.f_current_joint_idx
-    #         else:
-    #             # just do nothing
-    #             return False
-
-    #     else:
-    #         current_index = joint_idx
-
-    #     if current_index in self.f_exist_markers:
-    #         # remove the lines
-    #         print(f"delete marker the marker exist current index: {current_index}")
-    #         point = self.f_joints2markers[current_index]
-    #         for line in list(point.data(self.d_lines)):
-    #             print("there are lines")
-    #             # remove the line item from all the connected points
-    #             the_other_point = line.theOtherPoint(point)
-    #             print(f"the other point index: {the_other_point.data(self.d_joint_index)}")
-    #             point.data(self.d_lines).remove(line)
-    #             the_other_point.data(self.d_lines).remove(line)
-    #             self.scene.removeItem(line)
-
-    #         self.scene.removeItem(self.f_joints2markers[current_index])
-    #         self.f_exist_markers.remove(current_index)
-    #         self.f_joints2markers.pop(current_index)
-    #         self.frames_markers[self.frame, current_index] = np.nan
-
-    #     # update the scene
-    #     self.scene.update()
-    #     return True
-
-
     ## 
     def keyPressEvent(self, event):
         # ignore all the key press event, leave it to the parent widget
@@ -654,24 +470,6 @@ class SceneViewer(QGraphicsView):
 class Connection(QGraphicsLineItem):        # the line is not necessarily combined with the points, you do not return, so the 
     def __init__(self, start_point, end_point, color):          # , shift=5
         super().__init__()
-        # # self.shift = shift      # to meet the marker center, pass the shift from somewhere
-
-        # self.start_point = start_point
-        # self.end_point = end_point
-        # # print("line points", start_point.scenePos(), end_point.scenePos())
-
-        # # print(f"type of the points of the line {type(start_point)}, {type(end_point)}")
-
-        # # self._line = QLineF(start_point.mapToScene(-self.shift, -self.shift), end_point.mapToScene(-self.shift, -self.shift))
-        # self._line = QLineF(start_point.scenePos(), end_point.scenePos())
-        # self.setLine(self._line)
-
-        # # some defualt properties
-        # self.setSelected(False)
-        
-        # the_color = QColor(color2QColor(color))
-        # self.setPen(QPen(the_color, 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-        # ...
         
         self.start_point = start_point
         self.end_point = end_point
@@ -679,18 +477,6 @@ class Connection(QGraphicsLineItem):        # the line is not necessarily combin
 
         the_color = QColor(color2QColor(color))
         self.setPen(QPen(the_color, 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-
-    # def updateLine(self, source):       # 
-    #     # source position
-    #     if source == self.start_point:
-    #         # self._line.setP1(source.mapToScene(-self.shift, -self.shift))
-    #         self._line.setP1(source.scenePos())
-    #     elif source == self.end_point:
-    #         # self._line.setP2(source.mapToScene(-self.shift, -self.shift))
-    #         self._line.setP2(source.scenePos())
-    #     else:
-    #         raise ValueError("source should be the start or end point")
-    #     self.setLine(self._line)
 
 
     def updateLine(self,):
