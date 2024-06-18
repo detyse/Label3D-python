@@ -76,7 +76,7 @@ class Label3D(Animator):
 
         # the skeleton format aligned with DANNCE and Label3D
         self._joint_names = self.skeleton["joint_names"]
-        self._joint_idx = self.skeleton["joints_idx"]
+        self._joint_idx = self.skeleton["joints_idx"]               # no used
         self._color = self.skeleton["color"]
 
         self.current_joint = None
@@ -291,8 +291,8 @@ class Label3D(Animator):
 
     def keyPressEvent(self, event):
         # next frame, temporarily use the key F, will use the arrow Right key later
-        if event.key() == Qt.Key_F:
-            print("f is pressed")
+        if event.key() == Qt.Key_D:
+            print("F is pressed")
             # if self.frame < self.nFrames - 1:
             #     self.frame += self.frameRate
             # else: self.frame = self.nFrames - 1
@@ -300,33 +300,42 @@ class Label3D(Animator):
             self.frame_jump(True)
         
         # previous frame, temporarily use the key D, will use the arrow Left key later
-        elif event.key() == Qt.Key_D:
-            print("d is pressed")
+        elif event.key() == Qt.Key_A:
+            print("A is pressed")
             # if self.frame >= self.frameRate:
             #     self.frame -= self.frameRate
             # else: self.frame = 0
             # self.update_frame()
             self.frame_jump(False)
 
-        elif event.key() == Qt.Key_PageUp:            # double the frame rate
-            print("up is pressed")
+        elif event.key() == Qt.Key_Up:            # double the frame rate
+            print("UP is pressed")
             # if self.frameRate < self.nFrames:
             #     self.frameRate *= 2
             # else: self.frameRate = self.nFrames - 1
             # self.jump_rate.setText(f"Jump Rate: {self.frameRate}")
             self.update_frameRate(True)
 
-        elif event.key() == Qt.Key_PageDown:        # half the frame rate
-            print("down is pressed")
+        elif event.key() == Qt.Key_Down:        # half the frame rate
+            print("DOWN is pressed")
             # if self.frameRate > 1:
             #     self.frameRate /= 2
             # else: self.frameRate = 1
             # self.jump_rate.setText(f"Jump Rate: {self.frameRate}")
             self.update_frameRate(False)
 
+        elif event.key() == Qt.Key_Q:
+            print("Q is pressed")
+            if self.current_joint_idx is None:
+                self.update_joint(0)
+            elif self.current_joint_idx > 0:
+                self.update_joint(self.current_joint_idx - 1)
+            else:
+                self.update_joint(len(self._joint_names) - 1)
+
         # switch joint
         elif event.key() == Qt.Key_E:
-            print("tab is pressed")
+            print("E is pressed")
             if self.current_joint_idx is None:
                 self.update_joint(0)
             elif self.current_joint_idx < len(self._joint_names) - 1:
@@ -336,14 +345,14 @@ class Label3D(Animator):
         
         # triangulate the 3D joint
         elif event.key() == Qt.Key_T:
-            print("t is pressed")
-            if self.triangulate_joints():
+            print("T is pressed")
+            if self.triangulate_all_joints():
                 # reproject the 3D joint to the views
                 self.reproject_for_load()
                 self.update_radio_background()
 
         elif event.key() == Qt.Key_S:
-            print("s is pressed")
+            print("S is pressed")
             self.save_labels()
 
         elif event.key() == Qt.Key_R and QApplication.keyboardModifiers() == Qt.ControlModifier:
@@ -358,7 +367,7 @@ class Label3D(Animator):
     ## update the current joint, called by button and key press
     ## could update the button?
     def update_joint(self, input=None):
-        print("Update joint: Label3d - update_joint is called")
+        # print("Update joint: Label3d - update_joint is called")
 
         if input is None:       # init the joint state
             self.current_joint = None
@@ -420,7 +429,6 @@ class Label3D(Animator):
         return True
 
 
-    # TODO: check the function
     def triangulate_joints(self, ):         # called when T is pressed
         # print("triangulate is called")
         if self.current_joint is None:
@@ -449,12 +457,40 @@ class Label3D(Animator):
         RDist = self.RDist[view_avaliable]
         TDist = self.TDist[view_avaliable]
 
+        # change to for loop to handle all the joints
+
         point_3d = triangulateMultiview(points2d, r, t, K, RDist, TDist)
         self.joints3d[self.frame, self.current_joint_idx, :] = point_3d
         
         # print("the 3D joint position: ", point_3d)
         return True
 
+
+    def triangulate_all_joints(self, ):         # called when T is pressed
+        # update all the joints at once
+        for i in range(len(self._joint_names)):         # or joint in self._joint_idx
+            # do not update joint just update the joints3d
+            frame_view_markers = np.full((self.view_num, 2), np.nan)
+            for j, animator in enumerate(self.video_animators):     # get the joint position in each view
+                frame_view_markers[j] = animator.get_marker_2d(self.frame, i)
+            
+            # get the how many views have the joint
+            view_avaliable = ~np.isnan(frame_view_markers).all(axis=1)
+            if np.sum(view_avaliable) < 2:
+                continue
+
+            points2d = frame_view_markers[view_avaliable, :]
+            r = self.r[view_avaliable]
+            t = self.t[view_avaliable]
+            K = self.K[view_avaliable]
+            RDist = self.RDist[view_avaliable]
+            TDist = self.TDist[view_avaliable]
+
+            point_3d = triangulateMultiview(points2d, r, t, K, RDist, TDist)
+            self.joints3d[self.frame, i, :] = point_3d
+
+        return True
+    
 
     # TODO: use this function replace T
     def reproject_for_load(self, ):
@@ -532,8 +568,10 @@ class Label3D(Animator):
             return False
 
 
+############################################################################################################
+# utils
+
 # triangulate
-# def 
 def triangulateMultiview(points2d, r, t, K, RDist, TDist):
     cam_points = []
     for i in range(len(points2d)):

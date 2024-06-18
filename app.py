@@ -52,7 +52,7 @@ class LoadConfigDialog(QDialog):
         layout.addWidget(self.load)
 
         self.setLayout(layout)
-
+    
 
     def file_dialog(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Choose Configuration File", "", "Config Files (*.yaml *.json);;All Files (*)")
