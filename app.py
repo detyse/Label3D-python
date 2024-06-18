@@ -147,7 +147,7 @@ class ConfigWidget(QWidget):
         config_path_layout.addWidget(self.config_path)
         config_path_layout.addWidget(self.config_path_browse)
         # the config_path could be empty
-    
+        
         # the load button
         self.load_button = QPushButton("Load Config")
         self.load_button.clicked.connect(self.write_config)
@@ -220,7 +220,7 @@ class ConfigWidget(QWidget):
                 yaml.dump(config, f)
 
             self.yaml_path = yaml_path
-        
+            
             # load the config file
             self.load_config()
     

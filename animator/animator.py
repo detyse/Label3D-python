@@ -199,6 +199,7 @@ class VideoAnimator(Animator):
         self.f_current_joint_idx = joint_idx
         return True
 
+
     def set_marker_2d(self, pos, reprojection=False):       # the params are unnecessary
         self.plot_marker_and_lines(pos, reprojection=reprojection)
         return True
@@ -268,12 +269,12 @@ class VideoAnimator(Animator):
         marker = self.f_joints2markers.get(joint_idx)
         if marker:
             self.reset_marker(self.f_joints2markers[joint_idx], pos, reprojection)
-            print("animator - plot_marker_and_lines called -- reset marker")
+            # print("animator - plot_marker_and_lines called -- reset marker")
             self.scene.update()
             return
     
         else:
-            print("animator - plot_marker_and_lines called -- create marker")
+            # print("animator - plot_marker_and_lines called -- create marker")
             marker = QGraphicsEllipseItem(-self.marker_size//2, -self.marker_size//2, self.marker_size, self.marker_size)
             marker.setPos(pos[0], pos[1])
             brush = QBrush(color2QColor(self._color[joint_idx+1]))
@@ -310,7 +311,7 @@ class VideoAnimator(Animator):
             self.scene.addItem(connection)
 
             # here should be called t3 times
-            print("append lines")
+            # print("append lines")
             marker1_connections = marker1.data(self.d_lines)
             marker1_connections.append(connection)
             marker1.setData(self.d_lines, marker1_connections)
@@ -318,13 +319,13 @@ class VideoAnimator(Animator):
             marker2_connections.append(connection)
             marker2.setData(self.d_lines, marker2_connections)
         
-            print(marker1.data(self.d_lines))
-            print(marker2.data(self.d_lines))
+            # print(marker1.data(self.d_lines))
+            # print(marker2.data(self.d_lines))
         
 
     def reset_marker(self, item, new_pos, reprojection=False):
-        print(item.data(self.d_joint_index))
-        print(item.data(self.d_lines))
+        # print(item.data(self.d_joint_index))
+        # print(item.data(self.d_lines))
         
         item.setPos(new_pos[0], new_pos[1])
 
@@ -334,8 +335,8 @@ class VideoAnimator(Animator):
             self.original_markers[self.frame, joint_idx] = new_pos
 
         for connection in item.data(self.d_lines):
-            print("there should be lines!")
-            print(connection)
+            # print("there should be lines!")
+            # print(connection)
             connection.updateLine()
 
 
@@ -351,7 +352,7 @@ class VideoAnimator(Animator):
                 other_connections = other_marker.data(self.d_lines)
                 other_connections.remove(connection)
                 other_marker.setData(self.d_lines, other_connections)
-                print(other_marker.data(self.d_lines))
+                # print(other_marker.data(self.d_lines))
                 self.scene.removeItem(connection)
 
             self.scene.removeItem(marker)
@@ -369,7 +370,7 @@ class VideoAnimator(Animator):
 
     
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
+        if event.button() == Qt.LeftButton and event.modifiers() != Qt.ControlModifier:
             # pos = event.pos()           # the event pos relative to the widget, there is a position shift between the widget and the view
             # get the true position in the view
             view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
@@ -439,7 +440,7 @@ class SceneViewer(QGraphicsView):
 
 
     def mousePressEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton and event.modifiers() != Qt.ControlModifier:
+        if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
             self._dragging = True
             self._drag_start_pos = event.pos()
             # print("drag start position: ", self._drag_start_pos.x(), self._drag_start_pos.y())
@@ -465,6 +466,10 @@ class SceneViewer(QGraphicsView):
         super().mouseReleaseEvent(event)
 
 
+    def keyPressEvent(self, event):
+        event.ignore()
+
+
 # NOTE: meet some error when using the auto triangle, check if the error comes from here
 # 
 class Connection(QGraphicsLineItem):        # the line is not necessarily combined with the points, you do not return, so the 
@@ -484,7 +489,7 @@ class Connection(QGraphicsLineItem):        # the line is not necessarily combin
         start_pos = self.start_point.scenePos()
         end_pos = self.end_point.scenePos()
         self.setLine(QLineF(start_pos, end_pos))
-        print(f"update line: {start_pos.x()}, {start_pos.y()} to {end_pos.x()}, {end_pos.y()}")
+        # print(f"update line: {start_pos.x()}, {start_pos.y()} to {end_pos.x()}, {end_pos.y()}")
 
 
     # get the orther point of the line

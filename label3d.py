@@ -106,10 +106,12 @@ class Label3D(Animator):
 
         left_layout = QVBoxLayout()
         main_layout = QHBoxLayout()
+        frame_info_layout = QHBoxLayout()
+        outer_layout = QVBoxLayout()
 
         self.joint_button = {}
 
-        for joint in self._joint_names:
+        for joint in self._joint_names:                     # use the radio button to show the label stituation
             button = QRadioButton(joint, side_bar)
             self.joint_button[joint] = button
             button.clicked.connect(self.button_select_joint)        
@@ -131,9 +133,29 @@ class Label3D(Animator):
             views_layout.addWidget(animator, *positions[i])
 
         video_widget.setLayout(views_layout)
+
+        next_frame_button = QPushButton("Next Frame", self)
+        next_frame_button.clicked.connect(lambda: self.frame_jump(True))
+        last_frame_button = QPushButton("Last Frame", self)
+        last_frame_button.clicked.connect(lambda: self.frame_jump(False))
+        self.frame_info = QLabel(f"Frame: {self.frame + 1} / {self.nFrames}", self)
+        frame_info_layout.addWidget(last_frame_button)
+        frame_info_layout.addWidget(self.frame_info)
+        frame_info_layout.addWidget(next_frame_button)
+        self.jump_to = QLineEdit(self)
+        self.jump_to.setPlaceholderText("Jump to frame")
+        self.jump_to.returnPressed.connect(lambda: self.jump_to_frame(int(self.frame_jump.text()) - 1))
+        frame_info_layout.addWidget(self.jump_to)
+
+        self.jump_rate = QLabel(f"Jump Rate: {self.frameRate}", self)
+        frame_info_layout.addWidget(self.jump_rate)
+
         main_layout.addWidget(video_widget)
 
-        self.setLayout(main_layout)
+        outer_layout.addLayout(main_layout)
+        outer_layout.addLayout(frame_info_layout)
+
+        self.setLayout(outer_layout)
 
 
     def _set_animators(self, ):         # the video passed to the animator should be a list of all the video files
@@ -159,18 +181,19 @@ class Label3D(Animator):
                 col = np.floor(i / nRows)
                 pos[i, :] = [row, col]
         return pos
-    
 
     # 
     def _load_labels(self, ):
         # load the self.joints3d to animators
-        views_frames_markers = self.reproject_for_load()
-        for i, animator in enumerate(self.video_animators):
-            animator.load_labels(views_frames_markers[i], self.labeled_points[i])
+        self.reproject_for_load()
+        # for i, animator in enumerate(self.video_animators):
+        #     animator.load_labels(views_frames_markers[i], self.labeled_points[i])
 
-        print(f"self.frame: {self.frame}")
-        # self.update_frame()
-        return True
+        # print(f"self.frame: {self.frame}")
+        # self.update_frame()       # the load_labels function will update the frame, so no need to update the frame here
+        # self.update_radio_checked()
+        # above two lines are not necessary, because the frame is already set to 0
+        self.update_radio_background()
 
 
     def frame_align_with_animators(self, ):
@@ -185,7 +208,6 @@ class Label3D(Animator):
         self.frame = self.video_animators[0].frame        
         self.nFrames = self.video_animators[0].nFrames
         self.frameInd = np.arange(self.nFrames)
-        return 
 
 
     ## methods used to handle the GUI
@@ -193,28 +215,117 @@ class Label3D(Animator):
         button_joint = self.sender().text()
         self.update_joint(button_joint)
 
+    
+    def update_radio_background(self, ):             # will be called when joint is updated and t is pressed
+        # update the radio button state and the frame info
+        # if the joints3d is not nan, set the radio button background color to cyan
+        for i, joint in enumerate(self.joints3d[self.frame]):
+            if not np.isnan(joint).all():
+                self.joint_button[self._joint_names[i]].setStyleSheet("QRadioButton { background-color: #7fb7be; }")
+            else:
+                self.joint_button[self._joint_names[i]].setStyleSheet("")
 
-    def keyPressEvent(self, event):
-        super().keyPressEvent(event)
-        
-        # next frame, temporarily use the key F, will use the arrow Right key later
-        if event.key() == Qt.Key_F:
-            print("f is pressed")
+
+    def update_radio_checked(self, ):                # will be called when use tab to change the joint
+        # update the radio button checked state
+        if self.current_joint is not None:
+            self.joint_button[self.current_joint].setChecked(True)
+        else: 
+            for button in self.joint_button.values():
+                button.setChecked(False)
+
+
+    def frame_jump(self, forward=True):
+        current_frame = self.frame
+        if forward:
             if self.frame < self.nFrames - 1:
                 self.frame += self.frameRate
             else: self.frame = self.nFrames - 1
-            self.update_frame()
+        else:
+            if self.frame >= self.frameRate:
+                self.frame -= self.frameRate
+            else: self.frame = 0
+        
+        if current_frame != self.frame:
+            if self.warning_for_framechange():
+                self.update_frame()
+            else: 
+                self.frame = current_frame
+                return
+        else:
+            # do nothing
+            return
+
+
+    def jump_to_frame(self, frame_index):
+        current_frame = self.frame
+        if frame_index < 0:
+            self.frame = 0
+        elif frame_index >= self.nFrames:
+            self.frame = self.nFrames - 1
+        else:
+            self.frame = frame_index
+
+        if current_frame != self.frame:
+            if self.warning_for_framechange():
+                self.update_frame()
+            else: 
+                self.frame = current_frame
+                return 
+        else:
+            # do nothing
+            return
+
+
+    def update_frameRate(self, forward=True):
+        if forward:
+            if self.frameRate < self.nFrames:
+                self.frameRate *= 2
+            else: self.frameRate = self.nFrames - 1
+        else:
+            if self.frameRate > 1:
+                self.frameRate /= 2
+            else: self.frameRate = 1
+        self.jump_rate.setText(f"Jump Rate: {self.frameRate}")
+
+
+    def keyPressEvent(self, event):
+        # next frame, temporarily use the key F, will use the arrow Right key later
+        if event.key() == Qt.Key_F:
+            print("f is pressed")
+            # if self.frame < self.nFrames - 1:
+            #     self.frame += self.frameRate
+            # else: self.frame = self.nFrames - 1
+            # self.update_frame()
+            self.frame_jump(True)
         
         # previous frame, temporarily use the key D, will use the arrow Left key later
         elif event.key() == Qt.Key_D:
             print("d is pressed")
-            if self.frame >= self.frameRate:
-                self.frame -= self.frameRate
-            else: self.frame = 0
-            self.update_frame()
-        
+            # if self.frame >= self.frameRate:
+            #     self.frame -= self.frameRate
+            # else: self.frame = 0
+            # self.update_frame()
+            self.frame_jump(False)
+
+        elif event.key() == Qt.Key_PageUp:            # double the frame rate
+            print("up is pressed")
+            # if self.frameRate < self.nFrames:
+            #     self.frameRate *= 2
+            # else: self.frameRate = self.nFrames - 1
+            # self.jump_rate.setText(f"Jump Rate: {self.frameRate}")
+            self.update_frameRate(True)
+
+        elif event.key() == Qt.Key_PageDown:        # half the frame rate
+            print("down is pressed")
+            # if self.frameRate > 1:
+            #     self.frameRate /= 2
+            # else: self.frameRate = 1
+            # self.jump_rate.setText(f"Jump Rate: {self.frameRate}")
+            self.update_frameRate(False)
+
         # switch joint
-        elif event.key() == Qt.Key_Tab:
+        elif event.key() == Qt.Key_E:
             print("tab is pressed")
             if self.current_joint_idx is None:
                 self.update_joint(0)
@@ -228,7 +339,8 @@ class Label3D(Animator):
             print("t is pressed")
             if self.triangulate_joints():
                 # reproject the 3D joint to the views
-                self.reproject_joints()
+                self.reproject_for_load()
+                self.update_radio_background()
 
         elif event.key() == Qt.Key_S:
             print("s is pressed")
@@ -239,11 +351,15 @@ class Label3D(Animator):
             # clear the current joint
             self.clear_current_joint()
 
+        else:
+            super().keyPressEvent(event)
+
 
     ## update the current joint, called by button and key press
     ## could update the button?
     def update_joint(self, input=None):
         print("Update joint: Label3d - update_joint is called")
+
         if input is None:       # init the joint state
             self.current_joint = None
             self.current_joint_idx = None
@@ -269,14 +385,21 @@ class Label3D(Animator):
         for animator in self.video_animators:
             animator.set_joint(self.current_joint_idx)
 
+        self.update_radio_checked()
+
 
     # update the frame to control the animator frame change
+    # NOTE: should seperate the update_frame and the message box, the message box is warning for the current frame
     def update_frame(self, ):
+        self.frame_info.setText(f"Frame: {self.frame + 1} / {self.nFrames}")
+
         for i, animator in enumerate(self.video_animators):
             animator.update_frame(self.frame)
             # collect the original labeled points
             self.labeled_points[i, self.frame] = np.array(animator.get_all_original_marker_2d())
 
+        self.update_radio_background()
+        self.update_radio_checked()
         self.save_labels()
 
 
@@ -333,6 +456,7 @@ class Label3D(Animator):
         return True
 
 
+    # TODO: use this function replace T
     def reproject_for_load(self, ):
         # reproject the 3d points to views at once
         views_frames_markers = np.full((self.view_num, self.nFrames, len(self._joint_names), 2), np.nan) 
@@ -346,12 +470,17 @@ class Label3D(Animator):
                 for j, animator in enumerate(self.video_animators):
                     reprojected_points = reprojectToViews(point3d, self.r, self.t, self.K, self.RDist, self.TDist, self.view_num)
                     views_frames_markers[j, k, i] = reprojected_points[j]
+
+        # integrate animator update in the 
+        for i, animator in enumerate(self.video_animators):
+            animator.load_labels(views_frames_markers[i], self.labeled_points[i])
         return views_frames_markers
 
     
     # reproject the 3D joint to the views
     # TODO: check the function
     # the reprojection is using opencv projectPoints function
+    # just reproject the current joint 
     def reproject_joints(self, ):
         if self.current_joint is None:
             print("Please select a joint first")
@@ -385,6 +514,22 @@ class Label3D(Animator):
         self.save_labels()
         event.accept()
         return
+    
+
+    # a warning message box jump out when the label is not saved
+    # could continue or turn back
+    def warning_for_framechange(self, ):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setText("There are unsaved labels, press T to reproject the 3D joint \nClick OK to continue")
+        msg.setWindowTitle("Warning")
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msg.setDefaultButton(QMessageBox.Ok)
+        button = msg.exec()
+        if button == QMessageBox.Ok:
+            return True
+        else:
+            return False
 
 
 # triangulate
