@@ -144,7 +144,7 @@ class Label3D(Animator):
         frame_info_layout.addWidget(next_frame_button)
         self.jump_to = QLineEdit(self)
         self.jump_to.setPlaceholderText("Jump to frame")
-        self.jump_to.returnPressed.connect(lambda: self.jump_to_frame(int(self.frame_jump.text()) - 1))
+        self.jump_to.returnPressed.connect(lambda: self.jump_to_frame(int(self.jump_to.text()) - 1))
         frame_info_layout.addWidget(self.jump_to)
 
         self.jump_rate = QLabel(f"Jump Rate: {self.frameRate}", self)
@@ -220,7 +220,7 @@ class Label3D(Animator):
         # update the radio button state and the frame info
         # if the joints3d is not nan, set the radio button background color to cyan
         for i, joint in enumerate(self.joints3d[self.frame]):
-            if not np.isnan(joint).all():
+            if not np.isnan(joint).all():       # in is situation all and any are the same
                 self.joint_button[self._joint_names[i]].setStyleSheet("QRadioButton { background-color: #7fb7be; }")
             else:
                 self.joint_button[self._joint_names[i]].setStyleSheet("")
@@ -239,7 +239,10 @@ class Label3D(Animator):
         current_frame = self.frame
         if forward:
             if self.frame < self.nFrames - 1:
-                self.frame += self.frameRate
+                if self.frame + self.frameRate < self.nFrames:
+                    self.frame += self.frameRate
+                else: 
+                    self.frame = self.nFrames - 1
             else: self.frame = self.nFrames - 1
         else:
             if self.frame >= self.frameRate:
@@ -247,11 +250,17 @@ class Label3D(Animator):
             else: self.frame = 0
         
         if current_frame != self.frame:
-            if self.warning_for_framechange():
+            # if there is no nan in the current frame joints3d, return False, do not need to warn
+            if not np.isnan(self.joints3d[current_frame]).any():
+                # all the joints are labeled, update frame directly
                 self.update_frame()
-            else: 
-                self.frame = current_frame
                 return
+            else:
+                if self.warning_for_framechange():
+                    self.update_frame()
+                else: 
+                    self.frame = current_frame
+                    return
         else:
             # do nothing
             return
@@ -277,14 +286,17 @@ class Label3D(Animator):
             return
 
 
-    def update_frameRate(self, forward=True):
+    def update_frameRate(self, forward=True):       # keep the value be int
         if forward:
             if self.frameRate < self.nFrames:
-                self.frameRate *= 2
+                if self.frameRate * 2 < self.nFrames:
+                    self.frameRate *= 2
+                else:
+                    self.frameRate = self.nFrames - 1
             else: self.frameRate = self.nFrames - 1
         else:
             if self.frameRate > 1:
-                self.frameRate /= 2
+                self.frameRate //= 2
             else: self.frameRate = 1
         self.jump_rate.setText(f"Jump Rate: {self.frameRate}")
 
@@ -292,7 +304,7 @@ class Label3D(Animator):
     def keyPressEvent(self, event):
         # next frame, temporarily use the key F, will use the arrow Right key later
         if event.key() == Qt.Key_D:
-            print("F is pressed")
+            print("D is pressed")
             # if self.frame < self.nFrames - 1:
             #     self.frame += self.frameRate
             # else: self.frame = self.nFrames - 1
@@ -497,7 +509,7 @@ class Label3D(Animator):
         # reproject the 3d points to views at once
         views_frames_markers = np.full((self.view_num, self.nFrames, len(self._joint_names), 2), np.nan) 
         for k, frame_points in enumerate(self.joints3d):        # hopefully be the frames index
-            if np.isnan(frame_points).all():
+            if np.isnan(frame_points).all():            # NOTE: all and any are the same also
                 continue
             for i in range(len(self._joint_names)):
                 if np.isnan(frame_points[i]).all():
@@ -539,7 +551,7 @@ class Label3D(Animator):
         np.save(os.path.join(self.save_path, "joints3d.npy"), joints3d)
         np.save(os.path.join(self.save_path, "labeled_points.npy"), labeled_points)
 
-        print("data saved")
+        print("Data saved!")
         return True
 
 
@@ -555,6 +567,7 @@ class Label3D(Animator):
     # a warning message box jump out when the label is not saved
     # could continue or turn back
     def warning_for_framechange(self, ):
+
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
         msg.setText("There are unsaved labels, press T to reproject the 3D joint \nClick OK to continue")

@@ -370,7 +370,7 @@ class VideoAnimator(Animator):
 
     
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton and event.modifiers() != Qt.ControlModifier:
+        if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
             # pos = event.pos()           # the event pos relative to the widget, there is a position shift between the widget and the view
             # get the true position in the view
             view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
@@ -440,7 +440,7 @@ class SceneViewer(QGraphicsView):
 
 
     def mousePressEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
+        if event.button() == Qt.LeftButton and event.modifiers() != Qt.ControlModifier:
             self._dragging = True
             self._drag_start_pos = event.pos()
             # print("drag start position: ", self._drag_start_pos.x(), self._drag_start_pos.y())

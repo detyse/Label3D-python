@@ -52,7 +52,7 @@ class LoadConfigDialog(QDialog):
         layout.addWidget(self.load)
 
         self.setLayout(layout)
-    
+
 
     def file_dialog(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Choose Configuration File", "", "Config Files (*.yaml *.json);;All Files (*)")
@@ -262,7 +262,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         self.label3d = Label3D(camParams=self.camParams, videos=self.videos, skeleton=self.skeleton_path, frame_num2label=self.frame_num2label, save_path=self.save_path)
         layout.addWidget(self.label3d)
-        
+
         self.setLayout(layout)
         self.setCentralWidget(self.label3d)
 
@@ -282,9 +282,13 @@ class MainWindow(QMainWindow):
         self.manualBox = QMessageBox()
         self.manualBox.setWindowTitle("User Manual")
         self.manualBox.setText("User Manual: \n\n"
-                                "1. Using Ctrl + LeftMouse to label on the view if the joint is select \n"
-                                "2. Push Tab move to next joint, or click the joint on left bar to select a joint \n"
-                                "3. Push T to auto label the reset points of the joint \n"
+                                "1. Using \"Ctrl + Left\" to label on the view if the joint is select \n"
+                                "2. Push \"Q / E\" to select the joint \n"
+                                "3. \"Ctrl + Right\" could delete the markers \n"
+                                "4. Push \"D / A\" for next frame or last frame \n"
+                                "5. Push S for label saving \n"
+                                "6. Push \"Ctrl + R\" to clear create joint markers \n"
+                                "7. Push \"Up / Down\" to change the jump speed \n"
                                 "...")
         self.manualBox.exec()
 
