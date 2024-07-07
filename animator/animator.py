@@ -73,9 +73,8 @@ class VideoAnimator(Animator):
 
         # 
         self.frames_markers = np.full((self.nFrames, len(self._joint_names), 2), np.nan)
-        # reproject allowed
         self.original_markers = np.full((self.nFrames, len(self._joint_names), 2), np.nan)
-        # check the last mouse press event position and update the value
+        # here markers are all position, not the items
 
         # d for data, constant for item data saving
         # the index for save the data in the item
@@ -90,55 +89,26 @@ class VideoAnimator(Animator):
         # self.update_frame()         # not call in this class, for a better control  # called by the load_labels in label3d
         self._initView()
 
-    
-    # consider of just output a list of frames, we just using a function to do the job
-    def load_videos(self, video_file_list, label_num):
-        '''
-        the frame number not aligned situation is not considered
-        it is should be fine with a single video(which is the normal situation)
-        and assume all the videos want the same frame number
+    # NOTE: give up the multi video loading, will induce many problems
+    # also just consider the npy file, do not consider the index frame
+    def load_videos(self, video_folder, label_num):
+        file_list = [f for f in os.listdir(video_folder) if os.path.isfile(os.path.join(video_folder, f))]
 
-        comment: pretty slow to load the video,
-                    test the other method. *grab and retrieve*
-        '''
-        '''
-        add a new condition to load image data as frames for labeling
-        '''
-        # get the file type, if the file is a directory, then load the images
-        if os.path.isdir(video_file_list[0]):
-            frames = []
-            for image_folder in video_file_list:
-                image_list = os.listdir(image_folder)
-                image_list.sort()
-                for image_file in image_list:
-                    frame = cv2.imread(image_file)
-                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frames.append(rgb_frame)
-
-            print(f"load image frame number {len(frames)}")
-            return frames
-        
-        # else if the file ends with npy, then load the frames
-        elif video_file_list[0].endswith(".npy"):
-            frames = None
-            for npy_file in video_file_list:
-                frame = np.load(npy_file)
-                print(f"frame shape: {frame.shape}")
-                if frames is None:
-                    frames = frame
-                else:
-                    frames = np.concatenate((frames, frame), axis=0)
+        # if there is npy file, load the npy file
+        for file in file_list:
+            if file.endswith(".npy"):
+                frames = np.load(os.path.join(video_folder, file))
+                return frames
             
-            frames = list(frames)
-            print(f"load npy frame number {len(frames)}")
-            return frames
+        # if there is no npy file, load the video file
+        for file in file_list:
+            if file == "0.mp4" or file == "0.avi":
+                frame_num_list = []
+                frame_index_list = []
+                frames = []
 
-        # else if the file ends with mp4 or avi, then load the video
-        elif video_file_list[0].endswith(".mp4") or video_file_list[0].endswith(".avi"):
-            frame_num_list = []
-            frame_index_list = []
-            frames = []
-            for video_file in video_file_list:
+                video_file = os.path.join(video_folder, file)
+
                 cap = cv2.VideoCapture(video_file)
                 frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 frame_num_list.append(frame_num)
@@ -160,10 +130,156 @@ class VideoAnimator(Animator):
                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)      # 
                     
                     frames.append(rgb_frame)
+
                 cap.release()
+                return frames
+            
+        # error situation
+        raise ValueError("No video file could load!")
+
+
+    # # NOTE: give up the multi video loading? now have the multi view loading function
+    # def load_videos(self, video_folder_list, label_num):      # the label num would not to use
+    #     # video_file_list is the list get from all the folders...
+    #     # 文件名固定： 0.mp4/avi for video, frames.npy for frames, do not consider the images
+    #     # if the folder have the frames.npy, load npy file, otherwise load the 0.mp4 video
+    #     # skip the corner case, if some view do not have the npy...
+    #     # get files in the folder, check if there is a npy file
+        
+    #     first_folder = video_folder_list[0]
+        
+    #     file_list = [f for f in os.listdir(first_folder) if os.path.isfile(os.path.join(first_folder, f))]
+    #     # all the video should be process in the same way
+      
+    #     # if there is npy file, load the npy file
+    #     for file in file_list:
+    #         if file.endswith(".npy"):
+    #             frames = None
+    #             for folder in video_folder_list:
+    #                 file = os.path.join(folder, file)
+    #                 frames_ = np.load(file)
+    #                 if frames_ is None:
+    #                     # error
+    #                     pass
+
+    #                 else:
+    #                     if frames is None:
+    #                         frames = frames_
+    #                     else:
+    #                         frames = np.concatenate((frames, frames_), axis=0)
+
+    #             return frames       # numpy array
+
+
+    #     # if there is no npy file, load the video file
+    #     for file in file_list:
+    #         if file == "0.mp4" or file == "0.avi":
+    #             frame_num_list = []
+    #             frame_index_list = []
+    #             frames = []
+    #             for video_folder in video_folder_list:
+    #                 video_file = os.path.join(video_folder, file)
+
+    #                 cap = cv2.VideoCapture(video_file)
+    #                 frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    #                 frame_num_list.append(frame_num)
+                    
+    #                 if label_num == 0 or label_num > frame_num:
+    #                     label_num = frame_num
+
+    #                 indexes = np.linspace(0, frame_num-1, label_num, dtype=int)
+    #                 frame_index_list.append(indexes)
+
+    #                 # if the frame number is index, then get the frame
+    #                 for index in indexes:
+    #                     cap.set(cv2.CAP_PROP_POS_FRAMES, index)
+
+    #                     ret = cap.grab()
+    #                     if not ret:
+    #                         break
+    #                     ret, frame = cap.retrieve()
+    #                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)      # 
+                        
+    #                     frames.append(rgb_frame)
+    #                 cap.release()
                 
-            print(f"load video frame number {len(frames)}")
-        return frames
+    #             return frames
+
+    
+    # consider of just output a list of frames, we just using a function to do the job
+    # def load_videos(self, video_file_list, label_num):      
+    #     # if the folder have the frames.npy, load npy file, otherwise load the 0.mp4 video
+    #     '''
+    #     the frame number not aligned situation is not considered
+    #     it is should be fine with a single video(which is the normal situation)
+    #     and assume all the videos want the same frame number
+
+    #     comment: pretty slow to load the video,
+    #                 test the other method. *grab and retrieve*
+    #     '''
+    #     '''
+    #     add a new condition to load image data as frames for labeling
+    #     '''
+    #     # get the file type, if the file is a directory, then load the images
+    #     if os.path.isdir(video_file_list[0]):
+    #         frames = []
+    #         for image_folder in video_file_list:
+    #             image_list = os.listdir(image_folder)
+    #             image_list.sort()
+    #             for image_file in image_list:
+    #                 frame = cv2.imread(image_file)
+    #                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    #                 frames.append(rgb_frame)
+
+    #         print(f"load image frame number {len(frames)}")
+    #         return frames
+        
+    #     # else if the file ends with npy, then load the frames
+    #     elif video_file_list[0].endswith(".npy"):
+    #         frames = None
+    #         for npy_file in video_file_list:
+    #             frame = np.load(npy_file)
+    #             print(f"frame shape: {frame.shape}")
+    #             if frames is None:
+    #                 frames = frame
+    #             else:
+    #                 frames = np.concatenate((frames, frame), axis=0)
+            
+    #         frames = list(frames)
+    #         print(f"load npy frame number {len(frames)}")
+    #         return frames
+
+    #     # else if the file ends with mp4 or avi, then load the video
+    #     elif video_file_list[0].endswith(".mp4") or video_file_list[0].endswith(".avi"):
+    #         frame_num_list = []
+    #         frame_index_list = []
+    #         frames = []
+    #         for video_file in video_file_list:
+    #             cap = cv2.VideoCapture(video_file)
+    #             frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    #             frame_num_list.append(frame_num)
+                
+    #             if label_num == 0 or label_num > frame_num:
+    #                 label_num = frame_num
+
+    #             indexes = np.linspace(0, frame_num-1, label_num, dtype=int)
+    #             frame_index_list.append(indexes)
+
+    #             # if the frame number is index, then get the frame
+    #             for index in indexes:
+    #                 cap.set(cv2.CAP_PROP_POS_FRAMES, index)
+
+    #                 ret = cap.grab()
+    #                 if not ret:
+    #                     break
+    #                 ret, frame = cap.retrieve()
+    #                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)      # 
+                    
+    #                 frames.append(rgb_frame)
+    #             cap.release()
+            
+    #         print(f"load video frame number {len(frames)}")
+    #     return frames
 
 
     def initUI(self, ):
@@ -187,7 +303,7 @@ class VideoAnimator(Animator):
         self.update_frame()         # update the frame after the labels are loaded
 
 
-    def clear_marker_2d(self, ):
+    def clear_marker_2d(self, ):        # clear the current joint marker
         self.frames_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
         self.original_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
         self.delete_marker()
@@ -218,6 +334,7 @@ class VideoAnimator(Animator):
         return self.original_markers[self.frame]
 
 
+    # FIXME: load the joint3d and hand labeled data
     def update_frame(self, frame_ind=None):       # this function should be use after the frame change, also used to init the scene        
         # frame_ind: the index of video frames, 
         # update frame and using self.frame as current frame
@@ -240,10 +357,12 @@ class VideoAnimator(Animator):
         height, width, channels = current_frame.shape       # the frame shape would change
         # print(f"frame shape: {height}, {width}, {channels}")
         bytesPerLine = channels * width
-        q_image = QImage(current_frame.data, width, height, bytesPerLine, QImage.Format_RGB888)
-        pixmap = QPixmap.fromImage(q_image)
+        q_image = QImage(current_frame.data, width, height, bytesPerLine, QImage.Format_RGB888)         # should we set up a class property for frame image? for change the contrast?  and init?
+        self.pixmap = QPixmap.fromImage(q_image)            # only define when the frame is defined, use to change the frame contrast 
+        # define a contrast factor here for contrast adjustment
+        self.contrast_factor = 1.0
 
-        self.scene.addPixmap(pixmap)
+        self.scene.addPixmap(self.pixmap)
 
         # get the scene rect 
         the_rect = self.scene.sceneRect()
@@ -256,6 +375,29 @@ class VideoAnimator(Animator):
                 self.plot_marker_and_lines(pos, i, reprojection=False)          # update the exist markers
 
         self.scene.update()
+
+
+    # NOTE: add at the 240628
+    # here are two thoughts, just change the image QPixmap, 
+    # this function includes two process, one is change the contrast, the other is change the frame
+    def change_frame_contract(self, ):
+        # get the current frame pix object
+        if self.pixmap is None:
+            return
+        
+        else:
+            image_array = self.pixmap.toImage()
+            image_array = image_array.convertToFormat(QImage.Format_RGB888)
+            mean = np.mean(image_array)
+            adjusted_array = (image_array - mean) * self.contrast_factor + mean
+            adjusted_array = np.clip(adjusted_array, 0, 255).astype(np.uint8)
+
+            # update the image
+            q_image = QImage(adjusted_array.data, adjusted_array.shape[1], adjusted_array.shape[0], adjusted_array.shape[1]*3, QImage.Format_RGB888)
+            self.pixmap = QPixmap.fromImage(q_image)
+            self.scene.update()         # NOTE: try to directly update the pixmap, do not clear the scene, hope all is right
+            # otherwise could only call the update_frame method which have bug
+        return 
 
 
     # rewrite the functions
@@ -296,7 +438,7 @@ class VideoAnimator(Animator):
                     other_marker = self.f_joints2markers.get(other_id)
                     if other_marker:
                         self.update_or_create_connection(marker, other_marker, self._color[index])
-        
+
         self.scene.update()
 
 
@@ -324,9 +466,6 @@ class VideoAnimator(Animator):
         
 
     def reset_marker(self, item, new_pos, reprojection=False):
-        # print(item.data(self.d_joint_index))
-        # print(item.data(self.d_lines))
-        
         item.setPos(new_pos[0], new_pos[1])
 
         joint_idx = item.data(self.d_joint_index)
@@ -340,6 +479,7 @@ class VideoAnimator(Animator):
             connection.updateLine()
 
 
+    # 
     def delete_marker(self, joint_idx=None):
         joint_idx = joint_idx or self.f_current_joint_idx
         if joint_idx is None:
@@ -362,11 +502,20 @@ class VideoAnimator(Animator):
             
             self.scene.update()
     
+
     ## 
     def keyPressEvent(self, event):
         # ignore all the key press event, leave it to the parent widget
         # except sevel key press event
-        event.ignore()
+        # only for contrast adjust other events will be ignored
+        if event.key() == Qt.Key_BracketLeft:
+            self.contrast_factor -= 0.1
+            self.change_frame_contract()        # hope not need to use the update_frame method
+        elif event.key() == Qt.Key_BracketRight:
+            self.contrast_factor += 0.1
+            self.change_frame_contract()
+        else:
+            event.ignore()
 
     
     def mousePressEvent(self, event):

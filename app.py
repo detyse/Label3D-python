@@ -6,6 +6,9 @@
 # add we test our videos and the params
 # update: load the video frames at the first place, do not nest the loader in to deeper layer
 
+# TODO: add a new slot which will receive and update the signal from the label3d, and update the status bar
+# TODO: add error handlers
+
 import os
 import sys
 import cv2
@@ -68,7 +71,7 @@ class LoadConfigDialog(QDialog):
             self.accept()
         else:
             QMessageBox.warning(self, self, "Error", "Please select a valid directory.", QMessageBox.Ok)
-    
+        
 
     def getConfigPath(self, ):
         return self.path.text()
@@ -79,88 +82,88 @@ class ConfigWidget(QWidget):
         super().__init__()
         self.initUI()
 
-
-    def initUI(self, ):
-        layout = QVBoxLayout(self)
-        self.setLayout(layout)
-        
-        # TODO: change to grid layout for a better look
-        # 
+    # a new grid layout for better look and add the quality control option, as a radio button i think
+    # alsowide enough to show the path
+    def initUI(self):
+        # Create a grid layout
+        layout = QGridLayout()
 
         # video folder path
-        video_path_layout = QHBoxLayout()
         self.video_path_label = QLabel("Video Folder: ")
         self.video_path = QLineEdit()
         self.video_path_browse = QPushButton("...")
         self.video_path_browse.clicked.connect(lambda: self.dir_dialog(self.video_path))
-        video_path_layout.addWidget(self.video_path_label)
-        video_path_layout.addWidget(self.video_path)
-        video_path_layout.addWidget(self.video_path_browse)
+        layout.addWidget(self.video_path_label, 0, 0)  # row 0, column 0
+        layout.addWidget(self.video_path, 0, 1)        # row 0, column 1
+        layout.addWidget(self.video_path_browse, 0, 2) # row 0, column 2
 
         # cam params file path
-        cam_params_layout = QHBoxLayout()
         self.cam_params_label = QLabel("Camera Params File: ")
         self.cam_params = QLineEdit()
         self.cam_params_browse = QPushButton("...")
         self.cam_params_browse.clicked.connect(lambda: self.file_dialog(self.cam_params))
-        cam_params_layout.addWidget(self.cam_params_label)
-        cam_params_layout.addWidget(self.cam_params)
-        cam_params_layout.addWidget(self.cam_params_browse)
+        layout.addWidget(self.cam_params_label, 1, 0)  # row 1, column 0
+        layout.addWidget(self.cam_params, 1, 1)        # row 1, column 1
+        layout.addWidget(self.cam_params_browse, 1, 2) # row 1, column 2
 
         # skeleton file path
-        skeleton_path_layout = QHBoxLayout()
         self.skeleton_path_label = QLabel("Skeleton File: ")
         self.skeleton_path = QLineEdit()
         self.skeleton_path_browse = QPushButton("...")
         self.skeleton_path_browse.clicked.connect(lambda: self.file_dialog(self.skeleton_path))
-        skeleton_path_layout.addWidget(self.skeleton_path_label)
-        skeleton_path_layout.addWidget(self.skeleton_path)
-        skeleton_path_layout.addWidget(self.skeleton_path_browse)
+        layout.addWidget(self.skeleton_path_label, 2, 0)  # row 2, column 0
+        layout.addWidget(self.skeleton_path, 2, 1)        # row 2, column 1
+        layout.addWidget(self.skeleton_path_browse, 2, 2) # row 2, column 2
 
         # set the frame_num2label param
-        frame_num2label_layout = QHBoxLayout()
         self.frame_num2label_label = QLabel("Frame Number to Label: ")
         self.frame_num2label = QLineEdit()
-        self.frame_num2label.setValidator(QIntValidator())      # validate the input is an integer
-        frame_num2label_layout.addWidget(self.frame_num2label_label)
-        frame_num2label_layout.addWidget(self.frame_num2label)
-        # frame number to label could be empty
+        self.frame_num2label.setValidator(QIntValidator())
+        layout.addWidget(self.frame_num2label_label, 3, 0) # row 3, column 0
+        layout.addWidget(self.frame_num2label, 3, 1)       # row 3, column 1
+        # Frame number to label could be empty; no column 2 widget needed here
 
         # set save path
-        save_path_layout = QHBoxLayout()
         self.save_path_label = QLabel("Save Path: ")
         self.save_path = QLineEdit()
         self.save_path_label_browse = QPushButton("...")
         self.save_path_label_browse.clicked.connect(lambda: self.dir_dialog(self.save_path))
-        save_path_layout.addWidget(self.save_path_label)
-        save_path_layout.addWidget(self.save_path)
-        save_path_layout.addWidget(self.save_path_label_browse)
+        layout.addWidget(self.save_path_label, 4, 0)       # row 4, column 0
+        layout.addWidget(self.save_path, 4, 1)             # row 4, column 1
+        layout.addWidget(self.save_path_label_browse, 4, 2) # row 4, column 2
 
-        # set the config file path 
-        config_path_layout = QHBoxLayout()
+        # set the config file path
         self.config_path_label = QLabel("Config File: ")
         self.config_path = QLineEdit()
         self.config_path_browse = QPushButton("...")
         self.config_path_browse.clicked.connect(lambda: self.file_dialog(self.config_path))
-        # NOTE: if the config file is set, using the config file to load the params
-        config_path_layout.addWidget(self.config_path_label)
-        config_path_layout.addWidget(self.config_path)
-        config_path_layout.addWidget(self.config_path_browse)
-        # the config_path could be empty
-        
+        layout.addWidget(self.config_path_label, 5, 0)     # row 5, column 0
+        layout.addWidget(self.config_path, 5, 1)           # row 5, column 1
+        layout.addWidget(self.config_path_browse, 5, 2)    # row 5, column 2
+        # The config_path could be empty; thus, handle it accordingly
+
+        # Set initial row and column stretches as needed
+        layout.setColumnStretch(1, 1)  # Give more space to the middle column where line edits are
+
+        # set a main layout and a button layout for quality control button and the load button
+        button_layout = QHBoxLayout()
+
+        # on a single row, add a radio button for quality control 
+        self.quality_control = QRadioButton("quality control on")
+        button_layout.addWidget(self.quality_control)
+
         # the load button
         self.load_button = QPushButton("Load Config")
         self.load_button.clicked.connect(self.write_config)
+        button_layout.addWidget(self.load_button)
 
-        layout.addLayout(video_path_layout)
-        layout.addLayout(cam_params_layout)
-        layout.addLayout(skeleton_path_layout)
-        layout.addLayout(frame_num2label_layout)
-        layout.addLayout(save_path_layout)
+        main_layout = QVBoxLayout()
+        main_layout.addLayout(layout)
+        main_layout.addLayout(button_layout)
 
-        layout.addLayout(QHBoxLayout())
-        layout.addLayout(config_path_layout)
-        layout.addWidget(self.load_button)
+        # set the default window size
+        self.setGeometry(100, 100, 600, 300)
+        self.setLayout(main_layout)
 
 
     # file dialog
@@ -171,6 +174,7 @@ class ConfigWidget(QWidget):
         else:
             line_edit.setText('File not selected')
 
+
     # folder dialog
     def dir_dialog(self, line_edit):
         dir_path = QFileDialog.getExistingDirectory(self, "Choose Directory")
@@ -179,6 +183,7 @@ class ConfigWidget(QWidget):
         else:
             line_edit.setText('Directory not available')
 
+
     # write the selected config into yaml file for reference and load
     # connect to the load button
     def write_config(self, ):           # should read all the config then write into a yaml file
@@ -186,7 +191,7 @@ class ConfigWidget(QWidget):
         if config_path:
             self.yaml_path = config_path
             self.load_config()
-        
+
         else:
             video_folder = self.video_path.text()
             cam_params = self.cam_params.text()
@@ -200,25 +205,28 @@ class ConfigWidget(QWidget):
             if not save_path or not video_folder or not cam_params or not skeleton_path:
                 QMessageBox.warning(self, "Warning", "Please fill the config", QMessageBox.Ok)
                 return
-
+            
             if not self.frame_num2label.text():
                 frame_num2label = 0
             else:
                 frame_num2label = int(self.frame_num2label.text())
 
+            qc_mode = self.quality_control.isChecked()
+
             # write the config into a yaml file
             config = {
-                "video_folder": video_folder,
+                "video_folder": video_folder,           # the video list is defined in the video_folder
                 "cam_params": cam_params,
                 "skeleton_path": skeleton_path,
                 "frame_num2label": frame_num2label,
                 "save_path": save_path,
+                "quality_control_on": qc_mode
             }
 
             yaml_path = os.path.join(save_path, "config.yaml")
             with open(yaml_path, 'w') as f:
                 yaml.dump(config, f)
-
+    
             self.yaml_path = yaml_path
             
             # load the config file
@@ -239,17 +247,29 @@ class ConfigWidget(QWidget):
             QMessageBox.warning(self, "Error", "The config file is not valid.", QMessageBox.Ok)
 
 
+    # function to generate the video
+    # do we need to handle multi video data (with the same cam params) 既然写了就这么地吧
+    def frames_sample_and_save_the_index():
+        # put into the load config
+        return
+
+
 class MainWindow(QMainWindow):
     def __init__(self, params, *args, **kwargs):
         super().__init__() 
         self.params = params
         self.camParams = params['cam_params']
-        self.videos = params['video_folder']
-        print(self.videos)
+        self.videos = params['video_folder']    # 
         self.skeleton_path = params['skeleton_path']
         self.frame_num2label = params['frame_num2label']
         self.save_path = params['save_path']
+        self.qc_mode = params['quality_control_on']
         
+        # if the qc_mode is on, this index is a random sampled index with depulication
+        # else the index is uniformly sampled
+        # not set the default value for the frame_index, if the qc mode is on, the frame index should be read from the video folder
+        # self.frame_index = params['frame_index']
+
         self.args = args
         self.kwargs = kwargs
         self.initUI()
@@ -258,9 +278,11 @@ class MainWindow(QMainWindow):
     def initUI(self, ):
         self.setWindowTitle("3D Labeling Tool")
         self.setGeometry(100, 100, 800, 600)
-
+        
         layout = QVBoxLayout()
-        self.label3d = Label3D(camParams=self.camParams, videos=self.videos, skeleton=self.skeleton_path, frame_num2label=self.frame_num2label, save_path=self.save_path)
+        self.label3d = Label3D(camParams=self.camParams, videos=self.videos, skeleton=self.skeleton_path, frame_num2label=self.frame_num2label, save_path=self.save_path,
+                               qc_mode=self.qc_mode)        # newly added params
+        # the frame index will generate automatically in the video folder
         layout.addWidget(self.label3d)
 
         self.setLayout(layout)
@@ -275,6 +297,8 @@ class MainWindow(QMainWindow):
         
         self.statusBar = self.statusBar()
         self.statusBar.showMessage("Ready") 
+
+        self.label3d.update_status.connect(self.updateStatusBar)
 
 
     def user_manual(self, ):
@@ -301,6 +325,10 @@ class MainWindow(QMainWindow):
         else:
             event.ignore()
 
+    @Slot(str)
+    def updateStatusBar(self, new_text):
+        self.statusBar.showMessage(new_text)
+
 
 # define the widget in the Application?
 # This object holds the event loop of your application - the core loop which governs all user interaciton with the GUI
@@ -311,6 +339,8 @@ class MainApplication(QApplication):
         self.configWidget.show()
         self.configWidget.parent = lambda: self     # set parent of the configwidget as the application 
     
+    # NOTE: where the params comes from?
+    # this function will be called by the configWidget
     def startMainWindow(self, params):
         self.mainWindow = MainWindow(params)
         self.mainWindow.show()
@@ -321,7 +351,7 @@ def main():
         app = MainApplication(sys.argv)
         sys.exit(app.exec())
     except Exception as e:
-        traceback.point_exc()
+        traceback.point_exc()       # to get the traceback error
         print(e)
 
 
