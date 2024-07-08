@@ -50,12 +50,10 @@ class LoadYaml:
 
     def get_all_params(self):
         params = {}
-        if "quality_control_on" in self.data:
-            params['quality_control_on'] = self.data["quality_control_on"]
-            # print("Quality control is on")
+        if params['quality_control_on']:
+            print("Quality control is on")
             self.build_up_frames_npy()
         else:
-            params['quality_control_on'] = False
             print("Quality control is off")
             self.build_uniform_sample_indexes()
 
