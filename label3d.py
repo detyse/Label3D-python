@@ -301,11 +301,17 @@ class Label3D(Animator):
             self.frame = frame_index
 
         if current_frame != self.frame:
-            if self.warning_for_framechange():
+            # if there is no nan in the current frame joints3d, return False, do not need to warn
+            if not np.isnan(self.joints3d[current_frame]).any():
+                # all the joints are labeled, update frame directly
                 self.update_frame()
-            else: 
-                self.frame = current_frame
-                return 
+                return
+            else:
+                if self.warning_for_framechange():
+                    self.update_frame()
+                else: 
+                    self.frame = current_frame
+                    return
         else:
             # do nothing
             return
