@@ -89,14 +89,16 @@ class VideoAnimator(Animator):
         # self.update_frame()         # not call in this class, for a better control  # called by the load_labels in label3d
         self._initView()
 
+
     # NOTE: give up the multi video loading, will induce many problems
     # also just consider the npy file, do not consider the index frame
+    # build the index
     def load_videos(self, video_folder, label_num):
         file_list = [f for f in os.listdir(video_folder) if os.path.isfile(os.path.join(video_folder, f))]
 
         # if there is npy file, load the npy file
         for file in file_list:
-            if file.endswith(".npy"):
+            if file == "frames.npy":
                 frames = np.load(os.path.join(video_folder, file))
                 return frames
             
@@ -109,6 +111,7 @@ class VideoAnimator(Animator):
 
                 video_file = os.path.join(video_folder, file)
 
+                # 
                 cap = cv2.VideoCapture(video_file)
                 frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 frame_num_list.append(frame_num)
@@ -304,6 +307,11 @@ class VideoAnimator(Animator):
 
 
     def clear_marker_2d(self, ):        # clear the current joint marker
+        if self.f_current_joint_idx is None:
+            return
+        
+        # full the marker with nan
+        # self.frames_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
         self.frames_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
         self.original_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
         self.delete_marker()
@@ -362,7 +370,7 @@ class VideoAnimator(Animator):
         # define a contrast factor here for contrast adjustment
         self.contrast_factor = 1.0
 
-        self.scene.addPixmap(self.pixmap)
+        self.pixmap_item = self.scene.addPixmap(self.pixmap)
 
         # get the scene rect 
         the_rect = self.scene.sceneRect()
@@ -382,19 +390,40 @@ class VideoAnimator(Animator):
     # this function includes two process, one is change the contrast, the other is change the frame
     def change_frame_contract(self, ):
         # get the current frame pix object
+        print("change frame contrast function called")
         if self.pixmap is None:
+            print("no frame image loaded")
             return
         
         else:
-            image_array = self.pixmap.toImage()
-            image_array = image_array.convertToFormat(QImage.Format_RGB888)
-            mean = np.mean(image_array)
-            adjusted_array = (image_array - mean) * self.contrast_factor + mean
+            print(f"contrast factor: {self.contrast_factor}")
+            image = self.pixmap.toImage()
+            image = image.convertToFormat(QImage.Format_RGB888)
+
+            width = image.width()
+            height = image.height()
+            ptr = image.constBits()
+            arr = np.array(ptr).reshape(height, width, 3)
+
+            print("Original array shape:", arr.shape)
+            print("Original array mean:", np.mean(arr))
+
+            mean = np.mean(arr)
+            adjusted_array = (arr - mean) * self.contrast_factor + mean
             adjusted_array = np.clip(adjusted_array, 0, 255).astype(np.uint8)
+
+            print("Adjusted array mean:", np.mean(adjusted_array))
 
             # update the image
             q_image = QImage(adjusted_array.data, adjusted_array.shape[1], adjusted_array.shape[0], adjusted_array.shape[1]*3, QImage.Format_RGB888)
-            self.pixmap = QPixmap.fromImage(q_image)
+            pixmap = QPixmap.fromImage(q_image)
+
+            # update the pixmap
+            if hasattr(self, 'pixmap_item') and self.pixmap_item is not None:
+                self.pixmap_item.setPixmap(pixmap)
+            else:
+                self.pixmap_item = self.scene.addPixmap(pixmap)
+
             self.scene.update()         # NOTE: try to directly update the pixmap, do not clear the scene, hope all is right
             # otherwise could only call the update_frame method which have bug
         return 
@@ -402,6 +431,8 @@ class VideoAnimator(Animator):
 
     # rewrite the functions
     def plot_marker_and_lines(self, pos, joint_idx=None, reprojection=False):
+        # print("animator - plot_marker_and_lines called")
+
         if joint_idx is None:
             if self.f_current_joint_idx is None:
                 return
@@ -460,12 +491,11 @@ class VideoAnimator(Animator):
             marker2_connections = marker2.data(self.d_lines)
             marker2_connections.append(connection)
             marker2.setData(self.d_lines, marker2_connections)
-        
-            # print(marker1.data(self.d_lines))
-            # print(marker2.data(self.d_lines))
-        
 
+
+    # 
     def reset_marker(self, item, new_pos, reprojection=False):
+        print("reset marker called")
         item.setPos(new_pos[0], new_pos[1])
 
         joint_idx = item.data(self.d_joint_index)
@@ -481,11 +511,13 @@ class VideoAnimator(Animator):
 
     # 
     def delete_marker(self, joint_idx=None):
+        print("delete marker called")
         joint_idx = joint_idx or self.f_current_joint_idx
         if joint_idx is None:
             return
         
         marker = self.f_joints2markers.pop(joint_idx, None)
+        # pop the marker from the f_
         if marker:
             for connection in list(marker.data(self.d_lines)):
                 other_marker = connection.theOtherPoint(marker)
@@ -509,10 +541,16 @@ class VideoAnimator(Animator):
         # except sevel key press event
         # only for contrast adjust other events will be ignored
         if event.key() == Qt.Key_BracketLeft:
+            print("key press event (animator): bracket left")
             self.contrast_factor -= 0.1
+            if self.contrast_factor < 0.1:
+                self.contrast_factor = 0.1
             self.change_frame_contract()        # hope not need to use the update_frame method
         elif event.key() == Qt.Key_BracketRight:
+            print("key press event (animator): bracket right")
             self.contrast_factor += 0.1
+            if self.contrast_factor > 5.0:
+                self.contrast_factor = 5.0
             self.change_frame_contract()
         else:
             event.ignore()

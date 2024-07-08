@@ -43,21 +43,25 @@ class LoadYaml:
         try:
             with open(self.yaml_file, 'r') as f:
                 self.data = yaml.safe_load(f)
+            print(f"YAML data loaded: {self.data}")
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error loading YAML file: {e}")
 
 
     def get_all_params(self):
         params = {}
         if "quality_control_on" in self.data:
             params['quality_control_on'] = self.data["quality_control_on"]
+            # print("Quality control is on")
             self.build_up_frames_npy()
         else:
             params['quality_control_on'] = False
+            print("Quality control is off")
+            self.build_uniform_sample_indexes()
 
         params['cam_params'] = self.unpack_cam_params()
         # 
-        params['video_folder'] = self.get_video_folder()            # just one layer of folder
+        params['video_folder'] = self.data["video_folder"]            # just one layer of folder
         params['skeleton_path'] = self.data["skeleton_path"]
         params['frame_num2label'] = self.data["frame_num2label"]
         params['save_path'] = self.data["save_path"]
@@ -70,10 +74,11 @@ class LoadYaml:
         load_camParams = []
         for i in range(len(cam_params)):
             load_camParams.append(cam_params[i][0])
-
+        
         return load_camParams
     
 
+    # no use now
     def get_video_folder(self, ):
         video_folder = self.data["video_folder"]        # the folder path
         view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
@@ -81,7 +86,6 @@ class LoadYaml:
 
         # join the path
         view_folders = [os.path.join(video_folder, f) for f in view_folders]
-
         return view_folders
     
 
@@ -92,8 +96,9 @@ class LoadYaml:
         view_folders.sort()
 
         # get the index file
-        index_file = os.path.join(video_folder, 'frames_index.npy')
+        index_file = os.path.join(video_folder, 'indexes.npy')
         if os.path.exists(index_file):
+            print("Already have the index file")
             return
         
         # get the video path of the first view
@@ -126,6 +131,35 @@ class LoadYaml:
         
         return
 
+
+    # 方便后续处理
+    def build_uniform_sample_indexes(self, ):
+        video_folder = self.data["video_folder"]
+        view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
+        view_folders.sort()
+
+        index_file = os.path.join(video_folder, 'uniform_indexes.npy')
+        if os.path.exists(index_file):
+            return
+
+        # get the video path from the first view
+        view_folder = view_folders[0]
+        video_path = os.path.join(video_folder, view_folder, '0.mp4')
+        if not os.path.exists(video_path):
+            video_path = os.path.join(video_folder, view_folder, '0.avi')
+
+        cap = cv2.VideoCapture(video_path)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        label_num = self.data["frame_num2label"]
+        if label_num == 0 or label_num > total_frames:
+            label_num = total_frames
+
+        indexes = np.linspace(0, total_frames-1, label_num, dtype=int)
+        np.save(index_file, indexes)
+        
+        return 
+    
 
     ## NOTE: no use now
     # # how to make sure the alignment of the order?

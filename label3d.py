@@ -27,19 +27,21 @@ class Label3D(Animator):
     # signal
     update_status = Signal(str)
 
-    def __init__(self, camParams=None, videos=None, skeleton=None, frame_num2label=None, save_path=None, qc_mode=False) -> None:      # the qc_mode could be defined in the yaml file
+    def __init__(self, camParams=None, video_folder=None, skeleton=None, frame_num2label=None, save_path=None, qc_mode=False) -> None:      # the qc_mode could be defined in the yaml file
         super().__init__()  
         # assert
         self.camParams = camParams          # the camera parameters
-        self.videos = videos        # return a list of video_path for each view
+        self.video_folder = video_folder        # return a list of video_path for each view
+        self.views_video = self.get_views_video()        # the video path for each view, the video_folder
+        
         # will be a just a folder
-        print(f'label3d videos format: {self.videos}')
+
         self.skeleton = read_json_skeleton(skeleton)
         self.label_num = frame_num2label
 
         self.save_path = save_path
 
-        assert len(self.camParams) == len(self.videos)
+        assert len(self.camParams) == len(self.views_video)
         self.view_num = len(self.camParams)
 
         self.qc_mode = qc_mode
@@ -52,6 +54,15 @@ class Label3D(Animator):
         self._load_labels()
 
     
+    def get_views_video(self, ):
+        video_folder = self.video_folder       # the folder path
+        view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
+        view_folders.sort()
+
+        # join the path
+        view_folders = [os.path.join(video_folder, f) for f in view_folders]
+        return view_folders
+
     def _unpack_camParams(self, ):
         r = []
         t = []
@@ -74,13 +85,9 @@ class Label3D(Animator):
         self.TDist = np.array(TDist)
 
 
-    def _init_properties(self, ):
-        # no need for video assert because video is a list
-        # for video in self.videos:       # 
-        #     assert os.path.exists(video), f"Video file {video} not found"
-        
+    def _init_properties(self, ):        
         # assert the cam and video number, keep the order
-        assert len(self.camParams) == len(self.videos), "The number of cameras and videos should be the same"
+        assert len(self.camParams) == len(self.views_video), "The number of cameras and videos should be the same"
 
         self.view_num = len(self.camParams)
 
@@ -112,7 +119,9 @@ class Label3D(Animator):
             self._tolerant_error = self.skeleton["tolerant_error"]
             self.qc_frames = []                   # should be a list to store the low quality frames
             # get the frame index from the video folder
-            self.duplication_index = np.load(os.path.join(self.videos, "frames_index.npy"))
+            self.duplication_index = np.load(os.path.join(self.video_folder, "indexes.npy"))
+            # TODO: check the duplication index only duplicate once
+
 
     def _initGUI(self, ):
         self.setCursor(Qt.ArrowCursor)
@@ -182,7 +191,7 @@ class Label3D(Animator):
 
     def _set_animators(self, ):         # the video passed to the animator should be a list of all the video files
         video_animators = []            # a function to get the corresponding video list, in the utils: yaml loader
-        for video in self.videos:        
+        for video in self.views_video:        
             animator = VideoAnimator(video, self.skeleton, self.label_num)
             animator.setParent(self)
             video_animators.append(animator)
@@ -204,17 +213,11 @@ class Label3D(Animator):
                 pos[i, :] = [row, col]
         return pos
 
+
     # 
     def _load_labels(self, ):
         # load the self.joints3d to animators
         self.reproject_for_load()
-        # for i, animator in enumerate(self.video_animators):
-        #     animator.load_labels(views_frames_markers[i], self.labeled_points[i])
-
-        # print(f"self.frame: {self.frame}")
-        # self.update_frame()       # the load_labels function will update the frame, so no need to update the frame here
-        # self.update_radio_checked()
-        # above two lines are not necessary, because the frame is already set to 0
         self.update_radio_background()
 
 
@@ -227,7 +230,7 @@ class Label3D(Animator):
             assert self.video_animators[i].frame == self.video_animators[0].frame, "The frame index of videos must be the same"
         
         # set label3d frame property
-        self.frame = self.video_animators[0].frame        
+        self.frame = self.video_animators[0].frame
         self.nFrames = self.video_animators[0].nFrames
         self.frameInd = np.arange(self.nFrames)
 
@@ -242,7 +245,7 @@ class Label3D(Animator):
         # update the radio button state and the frame info
         # if the joints3d is not nan, set the radio button background color to cyan
         for i, joint in enumerate(self.joints3d[self.frame]):
-            if not np.isnan(joint).all():       # in is situation all and any are the same
+            if not np.isnan(joint).any():       # in is situation all and any are the same
                 self.joint_button[self._joint_names[i]].setStyleSheet("QRadioButton { background-color: #7fb7be; }")
             else:
                 self.joint_button[self._joint_names[i]].setStyleSheet("")
@@ -385,6 +388,7 @@ class Label3D(Animator):
             print("T is pressed")
             # FIXME: when there are only one view is labeled, the reprojection will case the marker disappear
             if self.triangulate_all_joints():
+                print("Triangulate all joints successfully")
                 # reproject the 3D joint to the views
                 self.reproject_for_load()
                 self.update_radio_background()
@@ -400,9 +404,10 @@ class Label3D(Animator):
             # clear the current joint
             self.clear_current_joint()
 
+
         # define the quality check shortcut
         elif event.key() == Qt.Key_C and self.qc_mode:
-            print("Ctrl + C is pressed")
+            print("C is pressed")
             self.run_quality_check()
 
 
@@ -464,7 +469,7 @@ class Label3D(Animator):
             print("Please select a joint first")
             return False
         
-        self.joints3d[self.frame, self.current_joint_idx] = np.nan
+        self.joints3d[self.frame, self.current_joint_idx, ...] = np.nan
         self.labeled_points[:, self.frame, self.current_joint_idx] = np.nan
 
         # update the frames_markers of each frame
@@ -478,15 +483,19 @@ class Label3D(Animator):
     def triangulate_all_joints(self, ):         # called when T is pressed
         # update all the joints at once
         for i in range(len(self._joint_names)):         # or joint in self._joint_idx
+            
             # do not update joint just update the joints3d
             frame_view_markers = np.full((self.view_num, 2), np.nan)
-            for j, animator in enumerate(self.video_animators):     # get the joint position in each view
-                frame_view_markers[j] = animator.get_marker_2d(self.frame, i)
-            
+            for j, animator in enumerate(self.video_animators):         # get the joint position in each view
+                print(f"joint: {self._joint_names[i]} in view: {j}, return the marker {animator.get_marker_2d(self.frame, i)}")
+                frame_view_markers[j] = animator.get_marker_2d(self.frame, i)       # FIXME: bug here
+                
             # get the how many views have the joint
             view_avaliable = ~np.isnan(frame_view_markers).all(axis=1)
             if np.sum(view_avaliable) < 2:
                 continue
+
+            print("T the joint: ", self._joint_names[i])
 
             points2d = frame_view_markers[view_avaliable, :]
             r = self.r[view_avaliable]
@@ -501,15 +510,18 @@ class Label3D(Animator):
         return True
     
     
-    # 
+    # FIXME: could not handle the situation that the joint have nan value
     def reproject_for_load(self, ):
         # reproject the 3d points to views at once
         views_frames_markers = np.full((self.view_num, self.nFrames, len(self._joint_names), 2), np.nan) 
         for k, frame_points in enumerate(self.joints3d):        # hopefully be the frames index
-            if np.isnan(frame_points).any():            # NOTE: all and any are the same also
-                continue
+            # if np.isnan(frame_points).any():            # NOTE: all and any are the same also
+            #     for u, animator in enumerate(self.video_animators):
+            #         views_frames_markers[u, k, :] = np.nan
+            #     continue
             for i in range(len(self._joint_names)):
                 if np.isnan(frame_points[i]).any():
+                    views_frames_markers[:, k, i] = np.nan
                     continue
                 point3d = frame_points[i]
                 for j, animator in enumerate(self.video_animators):
@@ -537,7 +549,7 @@ class Label3D(Animator):
             animator.set_marker_2d(reprojected_points[i], reprojection=True)
         return True
     
-
+ 
     def save_labels(self, ):        # 
         # save the labeled 3D joints and the original 2D points, will overwrite when save again
         # name the saved files
@@ -576,6 +588,7 @@ class Label3D(Animator):
         else:
             return False
 
+
     # do qc in this function, 
     # 1. check the all the joint is labeled or jump a warning message, if all labeled, jump the info message
     # 2. load the addtional information for the qc: the tolerant error for each joint, load from skeleton file (the error is the pixel error). the duplication index for the shuffled frames, could laod from an additional file
@@ -584,22 +597,32 @@ class Label3D(Animator):
     def run_quality_check(self, ):
         # get the data from te 
         duplicated_frames = []      # is a list of pairs of the frames index, the duplicated frames will be together
+        # 
+
         frame_index_collection = sorted(list(set(self.duplication_index)))
-        for i in frame_index_collection:
+        for index in frame_index_collection:
             # get the position pair of the duplicated frames (index1, index2)
-            position_pair = [j for j, x in enumerate(self.duplication_index) if x == i]
-            duplicated_frames.append(position_pair)     
+            position_pair = [j for j, x in enumerate(self.duplication_index) if x == index]
+            duplicated_frames.append(position_pair)
+        
+        # remove the repeated elements in the list
+        list_of_tuples = [tuple(i) for i in duplicated_frames]
+        duplicated_frames = list(set(list_of_tuples))
 
         # check the error for each frame and each joint
         for frame_pair in duplicated_frames:            # list of list
-            frame_one = self.joints3d[frame_pair[0]]
+            frame_one = self.joints3d[frame_pair[0]]        # shape: (joint_num, 3)
             frame_two = self.joints3d[frame_pair[1]]
             # calculate the error for each joint
-            error = np.sqrt(np.sum((frame_one - frame_two) ** 2, axis=2))
+            error = np.sqrt(np.sum((frame_one - frame_two) ** 2, axis=1))
+
+            # print(f"error shape {error.shape} and error: {error}")
+
             # check the error for each joint
             for i, joint_error in enumerate(error):
-                if joint_error > self.tolerant_error[i]:
+                if joint_error > self._tolerant_error[i]:
                     self.qc_frames.append(frame_pair)
+                    break
 
         # if there is no qc frames, jump a message box
         if len(self.qc_frames) == 0:
@@ -624,9 +647,10 @@ class Label3D(Animator):
             button = msg.exec()
 
             # update the frames info into the main window status bar
-            self.update_status.emit(f"Quality Check: {len(self.qc_frames)} frames need to be checked")
+            self.update_status.emit(f"Quality Check: frame {self.qc_frames} need to be checked")
 
         return True
+
 
     # not use now, only change one joint at a time
     def triangulate_joints(self, ):         # called when T is pressed
@@ -649,8 +673,6 @@ class Label3D(Animator):
         
         points2d = frame_view_markers[view_avaliable, :]
         
-        # print(points2d)
-
         r = self.r[view_avaliable]
         t = self.t[view_avaliable]
         K = self.K[view_avaliable]

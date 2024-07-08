@@ -154,7 +154,7 @@ class ConfigWidget(QWidget):
 
         # the load button
         self.load_button = QPushButton("Load Config")
-        self.load_button.clicked.connect(self.write_config)
+        self.load_button.clicked.connect(self.write_config)     # update the config and load the config
         button_layout.addWidget(self.load_button)
 
         main_layout = QVBoxLayout()
@@ -190,6 +190,23 @@ class ConfigWidget(QWidget):
         config_path = self.config_path.text()
         if config_path:
             self.yaml_path = config_path
+
+            ## temp code to fit the previous config file
+            # write the qc mode to the current config yaml file
+            with open(config_path, 'r') as f:
+                config = yaml.load(f, Loader=yaml.SafeLoader)
+            
+                # if there is no qc_mode in the config file, then add the qc_mode to the config file
+                qc_mode = self.quality_control.isChecked()
+                config['quality_control_on'] = qc_mode
+
+            # print(f"the qc mode from config obj: {config['quality_control_on/']}")
+
+            with open(config_path, 'w') as f:
+                # print(f"the config - {config}")
+                yaml.dump(config, f)
+            ## temp to here 
+
             self.load_config()
 
         else:
@@ -231,7 +248,8 @@ class ConfigWidget(QWidget):
             
             # load the config file
             self.load_config()
-    
+
+
     # 
     def load_config(self, ):
         yaml_path = self.yaml_path
@@ -259,7 +277,7 @@ class MainWindow(QMainWindow):
         super().__init__() 
         self.params = params
         self.camParams = params['cam_params']
-        self.videos = params['video_folder']    # 
+        self.video_folder = params['video_folder']    # 
         self.skeleton_path = params['skeleton_path']
         self.frame_num2label = params['frame_num2label']
         self.save_path = params['save_path']
@@ -280,7 +298,7 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 800, 600)
         
         layout = QVBoxLayout()
-        self.label3d = Label3D(camParams=self.camParams, videos=self.videos, skeleton=self.skeleton_path, frame_num2label=self.frame_num2label, save_path=self.save_path,
+        self.label3d = Label3D(camParams=self.camParams, video_folder=self.video_folder, skeleton=self.skeleton_path, frame_num2label=self.frame_num2label, save_path=self.save_path,
                                qc_mode=self.qc_mode)        # newly added params
         # the frame index will generate automatically in the video folder
         layout.addWidget(self.label3d)
@@ -325,6 +343,7 @@ class MainWindow(QMainWindow):
         else:
             event.ignore()
 
+
     @Slot(str)
     def updateStatusBar(self, new_text):
         self.statusBar.showMessage(new_text)
@@ -357,4 +376,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
