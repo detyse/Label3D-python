@@ -52,9 +52,11 @@ class LoadYaml:
         params = {}
         if params.get('quality_control_on', False):
             print("Quality control is off")
+            params["quality_control_on"] = False
             self.build_up_frames_npy()
         else:
             print("Quality control is on")
+            params["quality_control_on"] = True
             self.build_uniform_sample_indexes()
 
         params['cam_params'] = self.unpack_cam_params()
@@ -280,7 +282,7 @@ def frame_sampler(video_path, frame_index):
         ret = cap.grab()
         if not ret:
             break
-
+        
         ret, frame = cap.retrieve()
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 

@@ -205,7 +205,7 @@ class ConfigWidget(QWidget):
             with open(config_path, 'w') as f:
                 # print(f"the config - {config}")
                 yaml.dump(config, f)
-            ## temp to here 
+            ## temp to here
 
             self.load_config()
 
@@ -331,6 +331,7 @@ class MainWindow(QMainWindow):
                                 "5. Push S for label saving \n"
                                 "6. Push \"Ctrl + R\" to clear create joint markers \n"
                                 "7. Push \"Up / Down\" to change the jump speed \n"
+                                "8. Push [ / ] to change the contrast of the view image \n"
                                 "...")
         self.manualBox.exec()
 
