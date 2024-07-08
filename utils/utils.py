@@ -50,11 +50,11 @@ class LoadYaml:
 
     def get_all_params(self):
         params = {}
-        if params['quality_control_on']:
-            print("Quality control is on")
+        if params.get('quality_control_on', False):
+            print("Quality control is off")
             self.build_up_frames_npy()
         else:
-            print("Quality control is off")
+            print("Quality control is on")
             self.build_uniform_sample_indexes()
 
         params['cam_params'] = self.unpack_cam_params()
