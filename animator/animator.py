@@ -135,6 +135,8 @@ class VideoAnimator(Animator):
                     frames.append(rgb_frame)
 
                 cap.release()
+
+                frames = np.array(frames)
                 return frames
             
         # error situation

@@ -60,8 +60,8 @@ class Label3D(Animator):
         view_folders.sort()
 
         # join the path
-        view_folders = [os.path.join(video_folder, f) for f in view_folders]
-        return view_folders
+        views = [os.path.join(video_folder, f) for f in view_folders]
+        return views
 
     def _unpack_camParams(self, ):
         r = []

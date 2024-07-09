@@ -71,7 +71,7 @@ class LoadConfigDialog(QDialog):
             self.accept()
         else:
             QMessageBox.warning(self, self, "Error", "Please select a valid directory.", QMessageBox.Ok)
-        
+
 
     def getConfigPath(self, ):
         return self.path.text()
