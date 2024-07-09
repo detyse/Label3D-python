@@ -188,20 +188,21 @@ class ConfigWidget(QWidget):
     # connect to the load button
     def write_config(self, ):           # should read all the config then write into a yaml file
         config_path = self.config_path.text()
+        
+        # if the config path is exist, then update the config file
         if config_path:
             self.yaml_path = config_path
 
             ## temp code to fit the previous config file
             # write the qc mode to the current config yaml file
             with open(config_path, 'r') as f:
-                config = yaml.load(f, Loader=yaml.SafeLoader)
+                config = yaml.load(f, Loader=yaml.FullLoader)
             
-                # if there is no qc_mode in the config file, then add the qc_mode to the config file
-                qc_mode = self.quality_control.isChecked()
-                config['quality_control_on'] = qc_mode
+            # if there is no qc_mode in the config file, then add the qc_mode to the config file
+            qc_mode = self.quality_control.isChecked()
+            config['quality_control_on'] = qc_mode
 
-            # print(f"the qc mode from config obj: {config['quality_control_on/']}")
-
+            # write the new config into the yaml file
             with open(config_path, 'w') as f:
                 # print(f"the config - {config}")
                 yaml.dump(config, f)

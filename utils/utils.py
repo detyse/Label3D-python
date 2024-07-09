@@ -50,15 +50,14 @@ class LoadYaml:
 
     def get_all_params(self):
         params = {}
-        if params.get('quality_control_on', False):
-            print("Quality control is off")
-            params["quality_control_on"] = False
-            self.build_uniform_sample_indexes()
-        else:
-            print("Quality control is on")
-            params["quality_control_on"] = True
+        
+        params['quality_control_on'] = self.data["quality_control_on"]
+        
+        if params.get('quality_control_on'):
             self.build_up_frames_npy()
-
+        else:
+            self.build_uniform_sample_indexes()
+            
         params['cam_params'] = self.unpack_cam_params()
         # 
         params['video_folder'] = self.data["video_folder"]            # just one layer of folder
@@ -110,7 +109,7 @@ class LoadYaml:
         cap = cv2.VideoCapture(video_path)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        frame_index = np.random.choice(total_frames, len(self.data["frame_num2label"])//2, replace=False)
+        frame_index = np.random.choice(total_frames, self.data["frame_num2label"]//2, replace=False)
         frame_index = frame_index.repeat(2)
         np.random.shuffle(frame_index)
 
@@ -118,6 +117,8 @@ class LoadYaml:
 
         cap.release()
         
+        # TODO: add a check for npy file
+
         # build the frames npy for all the views
         frame_index = np.load(index_file)
         for view_folder in view_folders:
@@ -140,6 +141,7 @@ class LoadYaml:
 
         index_file = os.path.join(video_folder, 'uniform_indexes.npy')
         if os.path.exists(index_file):
+            print("Already have the index file")
             return
 
         # get the video path from the first view
