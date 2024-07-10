@@ -63,6 +63,7 @@ class Label3D(Animator):
         views = [os.path.join(video_folder, f) for f in view_folders]
         return views
 
+
     def _unpack_camParams(self, ):
         r = []
         t = []
@@ -88,6 +89,8 @@ class Label3D(Animator):
     def _init_properties(self, ):        
         # assert the cam and video number, keep the order
         assert len(self.camParams) == len(self.views_video), "The number of cameras and videos should be the same"
+        print(f"Number of cameras: {len(self.camParams)}")
+        print(f"Number of videos: {len(self.views_video)}")
 
         self.view_num = len(self.camParams)
 
@@ -196,21 +199,22 @@ class Label3D(Animator):
             animator.setParent(self)
             video_animators.append(animator)
         return video_animators
-        # the linkage of animators and the video is here, have nothing with the position
+        # the linkage of animators and the video is here, have nothing with the positiom
 
-
+    
     def _set_views_position(self, nViews=None):
         if nViews is None:
             nViews = self.view_num
 
-        nRows = np.floor(np.sqrt(nViews))
+        nRows = int(np.ceil(np.sqrt(nViews)))
+        nCols = int(np.ceil(nViews / nRows))
 
         pos = np.zeros((nViews, 2))
-        if nViews > 3:
-            for i in range(nViews):
-                row = i % nRows
-                col = np.floor(i / nRows)
-                pos[i, :] = [row, col]
+        for i in range(nViews):
+            row = i % nRows
+            col = i // nRows
+            pos[i, :] = [row, col]
+        
         return pos
 
 
