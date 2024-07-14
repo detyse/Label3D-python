@@ -1,0 +1,6 @@
+numpy==1.26.4
+opencv_python==4.10.0.82
+pandas==2.2.2
+PySide6==6.7.1
+PyYAML==6.0.1
+scipy==1.13.1
