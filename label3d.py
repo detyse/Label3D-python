@@ -35,7 +35,6 @@ class Label3D(Animator):
         self.views_video = self.get_views_video()        # the video path for each view, the video_folder
         
         # will be a just a folder
-
         self.skeleton = read_json_skeleton(skeleton)
         self.label_num = frame_num2label
 
