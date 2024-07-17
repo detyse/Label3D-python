@@ -1,10 +1,3 @@
-# the main ui here
-# TODO: design an entry for the quality check of the labeled data, 
-# the qc mode could be close
-# change the video load process in the main window part
-# will generate the numpy file for labeling
-# this class will use the frame index to generate a frame npy file, and load the npy file for label
-# 
 
 import os
 import sys
@@ -20,6 +13,7 @@ from PySide6.QtWidgets import *
 
 from utils.utils import read_json_skeleton, LoadYaml
 from animator.animator import Animator, VideoAnimator
+
 
 # TODO: if the qc mode is no check the quality of the labeled data, the qc mode could be closed
 # is a GUI for manual labeling of 3D keypoints in multiple cameras.
@@ -124,6 +118,9 @@ class Label3D(Animator):
             self.duplication_index = np.load(os.path.join(self.video_folder, "indexes.npy"))
             # TODO: check the duplication index only duplicate once
 
+        # add the contrastive change for all frames
+        self.contrast_factor = 1.0
+
 
     def _initGUI(self, ):
         self.setCursor(Qt.ArrowCursor)
@@ -135,6 +132,7 @@ class Label3D(Animator):
         left_layout = QVBoxLayout()
         main_layout = QHBoxLayout()
         frame_info_layout = QHBoxLayout()
+        # frame_info_layout.setAlignment(Qt.AlignLeft)
         outer_layout = QVBoxLayout()
 
         self.joint_button = {}
@@ -149,7 +147,6 @@ class Label3D(Animator):
         side_bar.setLayout(left_layout)
         main_layout.addWidget(side_bar)
 
-        # TODO: shrink the margin of the video_widget
         views_layout = QGridLayout()
         # set the space between widgets
         views_layout.setHorizontalSpacing(0)
@@ -162,8 +159,6 @@ class Label3D(Animator):
 
         video_widget.setLayout(views_layout)
 
-        # TODO: check the function of new buttons
-        # next_frame_button = QPushButton("Next Frame", self)
         next_frame_button = QToolButton(self)
         next_frame_button.setArrowType(Qt.RightArrow)
         next_frame_button.clicked.connect(lambda: self.frame_jump(True))
@@ -175,13 +170,27 @@ class Label3D(Animator):
         frame_info_layout.addWidget(last_frame_button)
         frame_info_layout.addWidget(self.frame_info)
         frame_info_layout.addWidget(next_frame_button)
+        
         self.jump_to = QLineEdit(self)
+        # limit the max length of the input
+        self.jump_to.setMaxLength(5)        # limit the character length
+        self.jump_to.setValidator(QIntValidator(0, self.nFrames - 1, self))        # limit the input range
+        self.jump_to.setMaximumWidth(150)
         self.jump_to.setPlaceholderText("Jump to frame")
         self.jump_to.returnPressed.connect(lambda: self.jump_to_frame(int(self.jump_to.text()) - 1))
         frame_info_layout.addWidget(self.jump_to)
 
         self.jump_rate = QLabel(f"Jump Rate: {self.frameRate}", self)
         frame_info_layout.addWidget(self.jump_rate)
+
+        frame_info_layout.addStretch()        # add a stretch to the right 
+
+        # TODO: add the qc button on the frame info layout
+        self.qc_button = QPushButton("Quality Check", self)
+        if not self.qc_mode:
+            self.qc_button.setEnabled(False)
+        self.qc_button.clicked.connect(self.run_quality_check)
+        frame_info_layout.addWidget(self.qc_button)
 
         main_layout.addWidget(video_widget)
 
@@ -207,6 +216,9 @@ class Label3D(Animator):
 
         nRows = int(np.ceil(np.sqrt(nViews)))
         nCols = int(np.ceil(nViews / nRows))
+
+        if nRows > nCols:
+            nRows = nCols
 
         pos = np.zeros((nViews, 2))
         for i in range(nViews):
@@ -402,17 +414,15 @@ class Label3D(Animator):
                 self.reproject_for_load()
                 self.update_radio_background()
 
-
         elif event.key() == Qt.Key_S:
             print("S is pressed")
             self.save_labels()
-
 
         elif event.key() == Qt.Key_R and QApplication.keyboardModifiers() == Qt.ControlModifier:
             print("Ctrl+R is pressed")
             # clear the current joint
             self.clear_current_joint()
-
+            self.update_radio_background()
 
         # define the quality check shortcut
         elif event.key() == Qt.Key_C and self.qc_mode:
@@ -420,15 +430,34 @@ class Label3D(Animator):
             self.run_quality_check()
 
 
+        if event.key() == Qt.Key_BracketLeft:
+            print("key press event (animator): bracket left")
+            self.contrast_factor -= 0.1
+            if self.contrast_factor < 0.1:
+                self.contrast_factor = 0.1
+            self.contrastive_change()        # hope not need to use the update_frame method
+        elif event.key() == Qt.Key_BracketRight:
+            print("key press event (animator): bracket right")
+            self.contrast_factor += 0.1
+            if self.contrast_factor > 5.0:
+                self.contrast_factor = 5.0
+            self.contrastive_change()
+
         else:
             super().keyPressEvent(event)
+
+
+    def contrastive_change(self, ):
+        # change the contrast for all frames
+        for i, animator in enumerate(self.video_animators):
+            animator.contrast_change(self.contrast_factor)
+        return 
 
 
     ## update the current joint, called by button and key press
     ## could update the button?
     def update_joint(self, input=None):
         # print("Update joint: Label3d - update_joint is called")
-
         if input is None:       # init the joint state
             self.current_joint = None
             self.current_joint_idx = None
@@ -453,6 +482,7 @@ class Label3D(Animator):
 
         for animator in self.video_animators:
             animator.set_joint(self.current_joint_idx)
+            # could highlight the current joint in this function and 
 
         self.update_radio_checked()
 
@@ -695,7 +725,6 @@ class Label3D(Animator):
         
         # print("the 3D joint position: ", point_3d)
         return True
-
 
 ############################################################################################################
 # utils

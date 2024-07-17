@@ -1,3 +1,9 @@
+# update 20240716 
+# 1. find the bug of cannot delete the first joint 
+# 2. add the function that the qc are not require to label all the frames
+# 3. change the storage place of sampled frames
+# 4. save the qc passed indexes for usage
+
 # here is the plan, time is 2024-05-26
 # we use the yaml to manage the config file for the 3D label, instead of a GUI
 # and we add a multi video method to label multiple videos at once (which requires properlly handling the animator loading )
@@ -72,7 +78,7 @@ class LoadConfigDialog(QDialog):
         else:
             QMessageBox.warning(self, self, "Error", "Please select a valid directory.", QMessageBox.Ok)
 
-    
+
     def getConfigPath(self, ):
         return self.path.text()
 
@@ -157,9 +163,15 @@ class ConfigWidget(QWidget):
         self.load_button.clicked.connect(self.write_config)     # update the config and load the config
         button_layout.addWidget(self.load_button)
 
+        # add the loading indicator for the label3d widget
+        self.loading_indicator = QLabel("Input the config and load the config")
+        indicator_layout = QVBoxLayout()
+        indicator_layout.addWidget(self.loading_indicator)
+
         main_layout = QVBoxLayout()
         main_layout.addLayout(layout)
         main_layout.addLayout(button_layout)
+        main_layout.addLayout(indicator_layout)
 
         # set the default window size
         self.setGeometry(100, 100, 600, 300)
@@ -186,70 +198,80 @@ class ConfigWidget(QWidget):
 
     # write the selected config into yaml file for reference and load
     # connect to the load button
+    # TODO: change the message box indicator to the QLabel indicator
     def write_config(self, ):           # should read all the config then write into a yaml file
-        config_path = self.config_path.text()
-        
-        # if the config path is exist, then update the config file
-        if config_path:
-            self.yaml_path = config_path
+        # unable the load button
+        self.load_button.setEnabled(False)
+        self.loading_indicator.setText("Loading...")
+        self.loading_indicator.repaint()
 
-            ## temp code to fit the previous config file
-            # write the qc mode to the current config yaml file
-            with open(config_path, 'r') as f:
-                config = yaml.load(f, Loader=yaml.FullLoader)
+        try: 
+            config_path = self.config_path.text()
             
-            # if there is no qc_mode in the config file, then add the qc_mode to the config file
-            qc_mode = self.quality_control.isChecked()
-            config['quality_control_on'] = qc_mode
+            # if the config path is exist, then update the config file
+            if config_path:
+                self.yaml_path = config_path
 
-            # write the new config into the yaml file
-            with open(config_path, 'w') as f:
-                # print(f"the config - {config}")
-                yaml.dump(config, f)
-            ## temp to here
+                ## temp code to fit the previous config file
+                # write the qc mode to the current config yaml file
+                with open(config_path, 'r') as f:
+                    config = yaml.load(f, Loader=yaml.FullLoader)
+                
+                # if there is no qc_mode in the config file, then add the qc_mode to the config file
+                qc_mode = self.quality_control.isChecked()
+                config['quality_control_on'] = qc_mode
 
-            self.load_config()
+                # write the new config into the yaml file
+                with open(config_path, 'w') as f:
+                    # print(f"the config - {config}")
+                    yaml.dump(config, f)
+                ## temp to here
 
-        else:
-            video_folder = self.video_path.text()
-            cam_params = self.cam_params.text()
-            skeleton_path = self.skeleton_path.text()
-            save_path = self.save_path.text()
+                self.load_config()
 
-            if not os.path.exists(save_path):
-                os.makedirs(save_path)
-
-            # if any is empty, then show a warning
-            if not save_path or not video_folder or not cam_params or not skeleton_path:
-                QMessageBox.warning(self, "Warning", "Please fill the config", QMessageBox.Ok)
-                return
-            
-            if not self.frame_num2label.text():
-                frame_num2label = 0
             else:
-                frame_num2label = int(self.frame_num2label.text())
+                video_folder = self.video_path.text()
+                cam_params = self.cam_params.text()
+                skeleton_path = self.skeleton_path.text()
+                save_path = self.save_path.text()
 
-            qc_mode = self.quality_control.isChecked()
+                if not os.path.exists(save_path):
+                    os.makedirs(save_path)
 
-            # write the config into a yaml file
-            config = {
-                "video_folder": video_folder,           # the video list is defined in the video_folder
-                "cam_params": cam_params,
-                "skeleton_path": skeleton_path,
-                "frame_num2label": frame_num2label,
-                "save_path": save_path,
-                "quality_control_on": qc_mode
-            }
+                # if any is empty, then show a warning
+                if not save_path or not video_folder or not cam_params or not skeleton_path:
+                    QMessageBox.warning(self, "Warning", "Please fill the config", QMessageBox.Ok)
+                    return
+                
+                if not self.frame_num2label.text():
+                    frame_num2label = 0
+                else:
+                    frame_num2label = int(self.frame_num2label.text())
 
-            yaml_path = os.path.join(save_path, "config.yaml")
-            with open(yaml_path, 'w') as f:
-                yaml.dump(config, f)
-    
-            self.yaml_path = yaml_path
-            
-            # load the config file
-            self.load_config()
+                qc_mode = self.quality_control.isChecked()
 
+                # write the config into a yaml file
+                config = {
+                    "video_folder": video_folder,           # the video list is defined in the video_folder
+                    "cam_params": cam_params,
+                    "skeleton_path": skeleton_path,
+                    "frame_num2label": frame_num2label,
+                    "save_path": save_path,
+                    "quality_control_on": qc_mode
+                }
+
+                yaml_path = os.path.join(save_path, "config.yaml")
+                with open(yaml_path, 'w') as f:
+                    yaml.dump(config, f)
+        
+                self.yaml_path = yaml_path
+                
+                # load the config file
+                self.load_config()
+        
+        except Exception as e:
+            self.load_button.setEnabled(True)
+            self.loading_indicator.setText("Error: " + str(e) + " === Please check the config file.")
 
     # 
     def load_config(self, ):
@@ -258,6 +280,8 @@ class ConfigWidget(QWidget):
             loader = LoadYaml(yaml_path)
             params = loader.get_all_params()
             if params:
+                self.loading_indicator.setText("Loading...")
+                self.loading_indicator.repaint()
                 self.parent().startMainWindow(params)
                 self.close()
             else:
@@ -265,13 +289,7 @@ class ConfigWidget(QWidget):
         else:
             QMessageBox.warning(self, "Error", "The config file is not valid.", QMessageBox.Ok)
 
-
-    # function to generate the video
-    # do we need to handle multi video data (with the same cam params) 既然写了就这么地吧
-    def frames_sample_and_save_the_index():
-        # put into the load config
-        return
-
+    
 
 class MainWindow(QMainWindow):
     def __init__(self, params, *args, **kwargs):
@@ -332,7 +350,7 @@ class MainWindow(QMainWindow):
                                 "5. Push S for label saving \n"
                                 "6. Push \"Ctrl + R\" to clear create joint markers \n"
                                 "7. Push \"Up / Down\" to change the jump speed \n"
-                                "8. Push [ / ] to change the contrast of the view image \n"
+                                "8. Push \"[ / ]\" to change the contrast of the view image \n"
                                 "...")
         self.manualBox.exec()
 
