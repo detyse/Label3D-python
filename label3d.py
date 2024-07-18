@@ -45,7 +45,6 @@ class Label3D(Animator):
         self._initGUI()
         self._load_labels()
 
-    
     # 
     def get_views_video(self, ):
         # if there is no frames file in the output folder, read the mp4 videos 
@@ -671,10 +670,15 @@ class Label3D(Animator):
             error = np.sqrt(np.sum((frame_one - frame_two) ** 2, axis=1))
 
             # check the error for each joint
+            qc_pass = True
             for i, joint_error in enumerate(error):
                 if joint_error > self._tolerant_error[i]:
                     self.qc_frames.append(frame_pair)
+                    qc_pass = False
                     break
+            
+            if qc_pass:
+                self.qc_passed.append(frame_pair)
 
         # if there is no qc frames, jump a message box
         if len(self.qc_frames) == 0:
@@ -700,6 +704,10 @@ class Label3D(Animator):
 
             # update the frames info into the main window status bar
             self.update_status.emit(f"Quality Check: frame {self.qc_frames} need to be checked")
+
+        # save the qc pass indexes
+        save_path = os.join(self.save_path, "qc_passed.npy")
+        np.save(save_path, self.qc_passed)
 
         return True
 
