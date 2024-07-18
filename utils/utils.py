@@ -139,6 +139,7 @@ class LoadYaml:
 
 
     # 方便后续处理
+    # TODO: add the frames number mismatch here
     def build_uniform_sample_indexes(self, ):
         video_folder = self.data["video_folder"]
         view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]

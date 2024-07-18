@@ -25,14 +25,18 @@ class Label3D(Animator):
         # assert
         self.camParams = camParams          # the camera parameters
         self.video_folder = video_folder        # return a list of video_path for each view
-        self.views_video = self.get_views_video()        # the video path for each view, the video_folder
-        
-        # will be a just a folder
-        self.skeleton = read_json_skeleton(skeleton)
+
         self.label_num = frame_num2label
 
         self.save_path = save_path
 
+        self.views_video = self.get_views_video()        # the video path for each view, the video_folder
+        
+        # will be a just a folder
+        self.skeleton = read_json_skeleton(skeleton)
+
+        print(len(self.camParams))
+        print(len(self.views_video))
         assert len(self.camParams) == len(self.views_video)
         self.view_num = len(self.camParams)
 
@@ -49,13 +53,16 @@ class Label3D(Animator):
     def get_views_video(self, ):
         # if there is no frames file in the output folder, read the mp4 videos 
         # if there is a frames.npy file in the output folder, read the frames.npy file
-        video_folder = self.save_folder
-        frames_path = os.path.join(video_folder, "frames")
+        frames_path = os.path.join(self.save_path, "frames")
         if not os.path.exists(frames_path):
             video_folder = self.video_folder
         
+        video_folder = frames_path
+
         view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
         view_folders.sort()
+
+        print(view_folders)
 
         # join the path
         views = [os.path.join(video_folder, f) for f in view_folders]
@@ -121,7 +128,7 @@ class Label3D(Animator):
             self.qc_frames = []             # should be a list to store the low quality frames
             self.qc_passed = []               
             # get the frame index from the video folder
-            self.duplication_index = np.load(os.path.join(self.video_folder, "indexes.npy"))
+            self.duplication_index = np.load(os.path.join(self.save_path, "indexes.npy"))
             # TODO: check the duplication index only duplicate once
 
         # add the contrastive change for all frames
