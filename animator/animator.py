@@ -90,7 +90,6 @@ class VideoAnimator(Animator):
         self._initView()
 
 
-    # NOTE: give up the multi video loading, will induce many problems
     # also just consider the npy file, do not consider the index frame
     # build the index
     def load_videos(self, video_folder, label_num):
@@ -141,6 +140,7 @@ class VideoAnimator(Animator):
             
         # error situation
         raise ValueError("No video file could load!")
+
 
     def initUI(self, ):
         # set cursor
@@ -193,6 +193,7 @@ class VideoAnimator(Animator):
     def set_marker_2d(self, pos, reprojection=False):       # the params are unnecessary
         self.plot_marker_and_lines(pos, reprojection=reprojection)
         return True
+
 
     # NOTE: 
     def get_marker_2d(self, frame=None, joint_idx=None):       

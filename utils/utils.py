@@ -91,11 +91,13 @@ class LoadYaml:
     def build_up_frames_npy(self, ):
         # could get/save the index in video folder
         video_folder = self.data["video_folder"]
+        save_folder = self.data["save_path"]
+
         view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
         view_folders.sort()
 
         # get the index file
-        index_file = os.path.join(video_folder, 'indexes.npy')
+        index_file = os.path.join(save_folder, 'indexes.npy')
         if os.path.exists(index_file):
             print("Already have the index file")
             return
@@ -109,10 +111,10 @@ class LoadYaml:
         cap = cv2.VideoCapture(video_path)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        frame_index = np.random.choice(total_frames, self.data["frame_num2label"]//2, replace=False)
+        frame_index = np.random.choice(total_frames, self.data["frame_num2label"], replace=False)
         frame_index = frame_index.repeat(2)
         np.random.shuffle(frame_index)
-
+        
         np.save(index_file, frame_index)
 
         cap.release()
@@ -127,7 +129,7 @@ class LoadYaml:
                 video_path = os.path.join(video_folder, view_folder, '0.avi')
 
             frames = frame_sampler(video_path, frame_index)
-            npy_file = os.path.join(video_folder, view_folder, 'frames.npy')
+            npy_file = os.path.join(save_folder, view_folder, 'frames.npy')
             np.save(npy_file, frames)
         
         return

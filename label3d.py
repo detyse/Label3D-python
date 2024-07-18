@@ -1,4 +1,3 @@
-
 import os
 import sys
 import time
@@ -47,8 +46,15 @@ class Label3D(Animator):
         self._load_labels()
 
     
+    # 
     def get_views_video(self, ):
-        video_folder = self.video_folder       # the folder path
+        # if there is no frames file in the output folder, read the mp4 videos 
+        # if there is a frames.npy file in the output folder, read the frames.npy file
+        video_folder = self.save_folder
+        frames_path = os.path.join(video_folder, "frames")
+        if not os.path.exists(frames_path):
+            video_folder = self.video_folder
+        
         view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
         view_folders.sort()
 
@@ -113,7 +119,8 @@ class Label3D(Animator):
         # for qc mode, and check the parameters are given or not
         if self.qc_mode:
             self._tolerant_error = self.skeleton["tolerant_error"]
-            self.qc_frames = []                   # should be a list to store the low quality frames
+            self.qc_frames = []             # should be a list to store the low quality frames
+            self.qc_passed = []               
             # get the frame index from the video folder
             self.duplication_index = np.load(os.path.join(self.video_folder, "indexes.npy"))
             # TODO: check the duplication index only duplicate once
@@ -413,16 +420,20 @@ class Label3D(Animator):
                 # reproject the 3D joint to the views
                 self.reproject_for_load()
                 self.update_radio_background()
+                self.update_joint(self.current_joint_idx)
+
 
         elif event.key() == Qt.Key_S:
             print("S is pressed")
             self.save_labels()
+
 
         elif event.key() == Qt.Key_R and QApplication.keyboardModifiers() == Qt.ControlModifier:
             print("Ctrl+R is pressed")
             # clear the current joint
             self.clear_current_joint()
             self.update_radio_background()
+
 
         # define the quality check shortcut
         elif event.key() == Qt.Key_C and self.qc_mode:
@@ -637,7 +648,6 @@ class Label3D(Animator):
         # get the data from te 
         duplicated_frames = []      # is a list of pairs of the frames index, the duplicated frames will be together
         # 
-
         frame_index_collection = sorted(list(set(self.duplication_index)))
         for index in frame_index_collection:
             # get the position pair of the duplicated frames (index1, index2)
@@ -652,10 +662,13 @@ class Label3D(Animator):
         for frame_pair in duplicated_frames:            # list of list
             frame_one = self.joints3d[frame_pair[0]]        # shape: (joint_num, 3)
             frame_two = self.joints3d[frame_pair[1]]
+
+            # if there are nan in the labeled points, skip the frame
+            if np.isnan(frame_one).any() or np.isnan(frame_two).any():
+                continue
+
             # calculate the error for each joint
             error = np.sqrt(np.sum((frame_one - frame_two) ** 2, axis=1))
-
-            # print(f"error shape {error.shape} and error: {error}")
 
             # check the error for each joint
             for i, joint_error in enumerate(error):
@@ -667,7 +680,7 @@ class Label3D(Animator):
         if len(self.qc_frames) == 0:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Information)
-            msg.setText("All the frames are labeled correctly")
+            msg.setText("There is no frame need to be checked")
             msg.setWindowTitle("Quality Check")
             msg.setStandardButtons(QMessageBox.Ok)
             msg.setDefaultButton(QMessageBox.Ok)
@@ -679,7 +692,7 @@ class Label3D(Animator):
             # jump a message box to show the qc frames
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Warning)
-            msg.setText("There are frames that need to be checked, click OK to continue")
+            msg.setText("There are frames that need to be checked showing at the bottom, \nclick OK to continue")
             msg.setWindowTitle("Quality Check")
             msg.setStandardButtons(QMessageBox.Ok)
             msg.setDefaultButton(QMessageBox.Ok)

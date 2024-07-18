@@ -4,6 +4,25 @@
 # 3. change the storage place of sampled frames
 # 4. save the qc passed indexes for usage
 
+# new update 20240717
+# 1. load cam params add the mat choose
+# 2. change the "load config" button to "start" button
+# 3. add load defined index option, the index is not required to be depulicated
+# 4. change the "load config" button to "load history" button (the config file is the highest priority, should we change that?)
+# 5. add preview module, which could repidly browse the video frames
+# 6. put the frames npy and the indexes into the output 
+# 7. the quality control is allowed to implement when the frames are not all labeled
+# 8. show the current frame index 
+# 9. save the qc passed indexes for usage
+# 10. concat the frames of all views into a single file
+# 11. GUI update, change the GUI: 
+#       the config window, add the load method to load the defined indexes
+#       also do not block when loading the frames
+#       main window, add preview button at the bottom
+# 12. change some button
+
+# a temp stable vision
+
 # here is the plan, time is 2024-05-26
 # we use the yaml to manage the config file for the 3D label, instead of a GUI
 # and we add a multi video method to label multiple videos at once (which requires properlly handling the animator loading )
@@ -263,7 +282,7 @@ class ConfigWidget(QWidget):
                 yaml_path = os.path.join(save_path, "config.yaml")
                 with open(yaml_path, 'w') as f:
                     yaml.dump(config, f)
-        
+                
                 self.yaml_path = yaml_path
                 
                 # load the config file
