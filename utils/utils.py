@@ -114,7 +114,7 @@ class LoadYaml:
         frame_index = np.random.choice(total_frames, self.data["frame_num2label"], replace=False)
         frame_index = frame_index.repeat(2)
         np.random.shuffle(frame_index)
-        
+
         np.save(index_file, frame_index)
 
         cap.release()
@@ -129,7 +129,10 @@ class LoadYaml:
                 video_path = os.path.join(video_folder, view_folder, '0.avi')
 
             frames = frame_sampler(video_path, frame_index)
-            npy_file = os.path.join(save_folder, view_folder, 'frames.npy')
+            npy_folder = os.path.join(save_folder, "frames", view_folder)
+            if not os.path.exists(npy_folder):
+                os.makedirs(npy_folder)
+            npy_file = os.path.join(npy_folder, 'frames.npy')
             np.save(npy_file, frames)
         
         return
