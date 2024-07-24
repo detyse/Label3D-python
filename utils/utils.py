@@ -36,6 +36,7 @@ class LoadYaml:
     yaml_file: str = ""
     data: dict = field(default_factory=dict, init=False)
 
+
     def __post_init__(self, ):
         self.load_yaml()
 
@@ -131,10 +132,11 @@ class LoadYaml:
 
         # TODO: add a check for npy file
         frame_index = frame_index.repeat(2)
+        # shuffle the index
+        np.random.shuffle(frame_index)
         np.save(index_file, frame_index)
-
-        if self.data["frame_indexes"] is None:
-            self.data["frame_indexes"] = index_file
+        
+        self.data["frame_indexes"] = index_file
 
         for view_folder in view_folders:
             video_path = os.path.join(video_folder, view_folder, '0.mp4')
@@ -177,14 +179,12 @@ class LoadYaml:
 
         # if there is the given indexes
         if self.data["frame_indexes"] is None:
-
             label_num = self.data["frame_num2label"]
             if label_num == 0 or label_num > total_frames:
                 label_num = total_frames
 
             indexes = np.linspace(0, total_frames-1, label_num, dtype=int)
             np.save(index_file, indexes)
-            self.data["frame_indexes"] = index_file
 
         else: 
             indexes = np.load(self.data["frame_indexes"])
@@ -195,6 +195,7 @@ class LoadYaml:
             # TODO: could also add other check here
             np.save(index_file, indexes)
         
+        self.data["frame_indexes"] = index_file
 
         # also save the frames
         for view_folder in view_folders:

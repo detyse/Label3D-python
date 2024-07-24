@@ -83,7 +83,7 @@ class Label3D(Animator):
             K.append(cam["K"][0][0].T)
             RDist.append(cam["RDistort"][0][0])
             TDist.append(cam["TDistort"][0][0])
-
+        
         self.r = np.array(r)
         self.t = np.array(t)
         self.K = np.array(K)
@@ -274,11 +274,12 @@ class Label3D(Animator):
         self.nFrames = self.video_animators[0].nFrames
 
         # align the frame index
-        if self.qc_mode:
-            assert self.nFrames == 2 * len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
-        else:
-            assert self.nFrames == len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
-
+        # NOTE: the index of qc should be a shuffled list, so the len of index should be the nFrames
+        # if self.qc_mode:
+        #     assert self.nFrames == 2 * len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
+        # else:
+        #     assert self.nFrames == len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
+        assert self.nFrames == len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
 
         self.frameInd = np.arange(self.nFrames)
 

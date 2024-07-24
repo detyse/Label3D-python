@@ -349,13 +349,13 @@ class MainWindow(QMainWindow):
         self.frame_num2label = params['frame_num2label']
         self.save_path = params['save_path']
         self.qc_mode = params['quality_control_on']
-        self.frame_indexes = params.get('frame_indexes', None)    # the frame indexes are not required to be depulicated
+        self.frame_indexes = params['frame_indexes']    # the frame indexes are not required to be depulicated
         
         # if the qc_mode is on, this index is a random sampled index with depulication
         # else the index is uniformly sampled
         # not set the default value for the frame_index, if the qc mode is on, the frame index should be read from the video folder
         # self.frame_index = params['frame_index']
-
+        
         self.args = args
         self.kwargs = kwargs
         self.initUI()
