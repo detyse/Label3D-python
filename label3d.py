@@ -251,7 +251,6 @@ class Label3D(Animator):
             row = i % nRows
             col = i // nRows
             pos[i, :] = [row, col]
-        
         return pos
 
     # 
