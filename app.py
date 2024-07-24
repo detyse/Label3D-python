@@ -252,7 +252,7 @@ class ConfigWidget(QWidget):
         except Exception as e:
             self.load_button.setEnabled(True)
             self.loading_indicator.setText("Error: " + str(e) + " === Please check the config file.")
-
+            raise e
     # 
     # def load_config(self, ):
     #     yaml_path = self.yaml_path
