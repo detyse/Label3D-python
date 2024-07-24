@@ -449,7 +449,7 @@ class Label3D(Animator):
             # self.jump_rate.setText(f"Jump Rate: {self.frameRate}")
             self.update_frameRate(False)
 
-        elif event.key() == Qt.Key_Q and not self.qc_mode:
+        elif event.key() == Qt.Key_Q and not self.preview_mode:
             print("Q is pressed")
             if self.current_joint_idx is None:
                 self.update_joint(0)
@@ -459,7 +459,7 @@ class Label3D(Animator):
                 self.update_joint(len(self._joint_names) - 1)
 
         # switch joint
-        elif event.key() == Qt.Key_E and not self.qc_mode:
+        elif event.key() == Qt.Key_E and not self.preview_mode:
             print("E is pressed")
             if self.current_joint_idx is None:
                 self.update_joint(0)
@@ -472,7 +472,7 @@ class Label3D(Animator):
         # BUG: the bug is, delete some point and redraw them with a "T" will cause the point disappear
         # triangulate the 3D joint
         # TODO: check the function
-        elif event.key() == Qt.Key_T and not self.qc_mode:
+        elif event.key() == Qt.Key_T and not self.preview_mode:
             print("T is pressed")
             # FIXME: when there are only one view is labeled, the reprojection will case the marker disappear
             if self.triangulate_all_joints():
@@ -483,7 +483,7 @@ class Label3D(Animator):
                 self.update_joint(self.current_joint_idx)
 
 
-        elif event.key() == Qt.Key_S and not self.qc_mode:
+        elif event.key() == Qt.Key_S and not self.preview_mode:
             print("S is pressed")
             self.save_labels()
 
@@ -496,7 +496,7 @@ class Label3D(Animator):
 
 
         # define the quality check shortcut
-        elif event.key() == Qt.Key_C and self.qc_mode:
+        elif event.key() == Qt.Key_C and not self.preview_mode:
             print("C is pressed")
             self.run_quality_check()
 
