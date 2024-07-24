@@ -66,7 +66,11 @@ class LoadYaml:
         params['skeleton_path'] = self.data["skeleton_path"]
         params['frame_num2label'] = self.data["frame_num2label"]
         params['save_path'] = self.data["save_path"]
-        params['frame_indexes'] = self.data["frame_indexes"]        # here the frame index have a higher priority than the frame_num2label
+
+        # the frame indexes should be the indexes file in the save path
+        save_folder = self.data["save_path"]
+        index_file = os.path.join(save_folder, 'indexes.npy')
+        params['frame_indexes'] = index_file        # here the frame index have a higher priority than the frame_num2label
         return params
 
 
@@ -117,12 +121,12 @@ class LoadYaml:
         cap.release()
 
         # if did not set the frame index, build the index, else use the given index
-        if self.data["frame_indexes"] is None:
+        if self.data["given_frame_indexes"] is None:
             frame_index = np.random.choice(total_frames, self.data["frame_num2label"], replace=False)
             np.random.shuffle(frame_index)
 
         else:
-            frame_index = np.load(self.data["frame_indexes"])
+            frame_index = np.load(self.data["given_frame_indexes"])
             # check the index avaliable, if the max and the min index is out of the total frames
             if frame_index.max() >= total_frames or frame_index.min() < 0:
                 print("The frame index is out of the total frames")
@@ -136,8 +140,6 @@ class LoadYaml:
         np.random.shuffle(frame_index)
         np.save(index_file, frame_index)
         
-        self.data["frame_indexes"] = index_file
-
         for view_folder in view_folders:
             video_path = os.path.join(video_folder, view_folder, '0.mp4')
             if not os.path.exists(video_path):
@@ -178,7 +180,7 @@ class LoadYaml:
         cap.release()
 
         # if there is the given indexes
-        if self.data["frame_indexes"] is None:
+        if self.data["given_frame_indexes"] is None:
             label_num = self.data["frame_num2label"]
             if label_num == 0 or label_num > total_frames:
                 label_num = total_frames
@@ -187,7 +189,7 @@ class LoadYaml:
             np.save(index_file, indexes)
 
         else: 
-            indexes = np.load(self.data["frame_indexes"])
+            indexes = np.load(self.data["given_frame_indexes"])
             if indexes.max() >= total_frames or indexes.min() < 0:
                 print("The frame index is out of the total frames")
                 raise ValueError("The frame index is out of the total frames")
@@ -195,8 +197,6 @@ class LoadYaml:
             # TODO: could also add other check here
             np.save(index_file, indexes)
         
-        self.data["frame_indexes"] = index_file
-
         # also save the frames
         for view_folder in view_folders:
             video_path = os.path.join(video_folder, view_folder, '0.mp4')

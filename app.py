@@ -237,7 +237,7 @@ class ConfigWidget(QWidget):
                     "frame_num2label": frame_num2label,
                     "save_path": save_path,
                     "quality_control_on": qc_mode,
-                    "frame_indexes": frame_indexes,
+                    "given_frame_indexes": frame_indexes,
                 }
 
                 yaml_path = os.path.join(save_path, "config.yaml")
@@ -355,7 +355,7 @@ class MainWindow(QMainWindow):
         # else the index is uniformly sampled
         # not set the default value for the frame_index, if the qc mode is on, the frame index should be read from the video folder
         # self.frame_index = params['frame_index']
-        
+
         self.args = args
         self.kwargs = kwargs
         self.initUI()
