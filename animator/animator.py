@@ -85,6 +85,8 @@ class VideoAnimator(Animator):
         # trivial properties
         self.marker_size = 10       # the size of the point
 
+        self.preview_mode = False       # the preview mode for the animator, if true, the animator could not be edited  
+
         self.initUI()
         # self.update_frame()         # not call in this class, for a better control  # called by the load_labels in label3d
         self._initView()
@@ -92,8 +94,10 @@ class VideoAnimator(Animator):
 
     # also just consider the npy file, do not consider the index frame
     # build the index
+    # load the frame files from output folder
     def load_videos(self, video_folder, label_num):
-        file_list = [f for f in os.listdir(video_folder) if os.path.isfile(os.path.join(video_folder, f))]
+        # file_list = [f for f in os.listdir(video_folder) if os.path.isfile(os.path.join(video_folder, f))]
+        file_list = os.listdir(video_folder)
 
         # if there is npy file, load the npy file
         for file in file_list:
@@ -101,6 +105,8 @@ class VideoAnimator(Animator):
                 frames = np.load(os.path.join(video_folder, file))
                 return frames
         
+        # i think we are not using this right now, all the video will be saved as npy file
+        # because we want to solve the GUI block problem
         # if there is no npy file, load the video file
         for file in file_list:
             if file == "0.mp4" or file == "0.avi":
@@ -479,25 +485,29 @@ class VideoAnimator(Animator):
 
     
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
-            # pos = event.pos()           # the event pos relative to the widget, there is a position shift between the widget and the view
-            # get the true position in the view
-            view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
-            scene_pos = self.view.mapToScene(view_pos)
-            self.plot_marker_and_lines([scene_pos.x(), scene_pos.y()], reprojection=False)                  # plot the marker       # 
+        if not self.preview_mode:
+            if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
+                # pos = event.pos()           # the event pos relative to the widget, there is a position shift between the widget and the view
+                # get the true position in the view
+                view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
+                scene_pos = self.view.mapToScene(view_pos)
+                self.plot_marker_and_lines([scene_pos.x(), scene_pos.y()], reprojection=False)                  # plot the marker       # 
 
 
-        # FIXME: the delete function on the first joint could not work properly
-        elif event.button() == Qt.RightButton and event.modifiers() == Qt.ControlModifier:
-            view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
-            scene_pos = self.view.mapToScene(view_pos)
-            item = self.scene.itemAt(scene_pos, self.view.transform())
-            if isinstance(item, QGraphicsEllipseItem):
-                joint_idx = item.data(self.d_joint_index)
-                if joint_idx is not None:
-                    self.delete_marker(joint_idx)
-                else:
-                    print("joint index is None")
+            # FIXME: the delete function on the first joint could not work properly
+            elif event.button() == Qt.RightButton and event.modifiers() == Qt.ControlModifier:
+                view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
+                scene_pos = self.view.mapToScene(view_pos)
+                item = self.scene.itemAt(scene_pos, self.view.transform())
+                if isinstance(item, QGraphicsEllipseItem):
+                    joint_idx = item.data(self.d_joint_index)
+                    if joint_idx is not None:
+                        self.delete_marker(joint_idx)
+                    else:
+                        print("joint index is None")
+
+        else:
+            event.ignore()
 
 
 # # utils
