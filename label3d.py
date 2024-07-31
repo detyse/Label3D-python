@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import datetime
 
 import numpy as np
 import pandas as pd
@@ -117,7 +118,7 @@ class Label3D(Animator):
         if os.path.exists(os.path.join(self.save_path, "joints3d.npy")):
             print("Loading existing labels")
             self.joints3d = np.load(os.path.join(self.save_path, "joints3d.npy"))
-            
+        
         if os.path.exists(os.path.join(self.save_path, "labeled_points.npy")):
             print("Loading existing original labels")
             self.labeled_points = np.load(os.path.join(self.save_path, "labeled_points.npy"))
@@ -680,7 +681,6 @@ class Label3D(Animator):
         print("Data saved!")
         return True
 
-
     def closeEvent(self, event):
         for i, animator in enumerate(self.video_animators):
             self.labeled_points[i, self.frame] = np.array(animator.get_all_original_marker_2d())
@@ -711,6 +711,9 @@ class Label3D(Animator):
     # 2. load the addtional information for the qc: the tolerant error for each joint, load from skeleton file (the error is the pixel error). the duplication index for the shuffled frames, could laod from an additional file
     # 3. a new label3d window(could jump to these frames) for the not good frames(or just give the index to the user), the not good frames are the frames that the error is larger than the tolerant error
     # 4. recheck the not good frames, and save the new labels if qc passed
+
+    # TODO: add the popup message box for the qc frames, and save an excel file to show the qc frames
+    # write the qc information into the excel file
     def run_quality_check(self, ):
         # get the data from te 
         duplicated_frames = []      # is a list of pairs of the frames index, the duplicated frames will be together
@@ -721,6 +724,16 @@ class Label3D(Animator):
             position_pair = [j for j, x in enumerate(self.duplication_index) if x == index]
             duplicated_frames.append(position_pair)
         
+        # excel file
+        qc_df = pd.DataFrame()
+        # build the joint col, self._joint_name
+        joint_col = []
+        for joint in self._joint_names:
+            joint_col.append(joint)
+
+        # write the joint col into the df
+        qc_df['joints/frames'] = joint_col
+
         # remove the repeated elements in the list
         list_of_tuples = [tuple(i) for i in duplicated_frames]
         duplicated_frames = list(set(list_of_tuples))
@@ -736,17 +749,28 @@ class Label3D(Animator):
 
             # calculate the error for each joint
             error = np.sqrt(np.sum((frame_one - frame_two) ** 2, axis=1))
-
+            
+            frame_qc_col = []
             # check the error for each joint
             qc_pass = True
             for i, joint_error in enumerate(error):
                 if joint_error > self._tolerant_error[i]:
+                    frame_qc_col.append("Fail")
                     self.qc_frames.append(frame_pair)
                     qc_pass = False
-                    break
-            
+                else:
+                    frame_qc_col.append("Pass")
+
+            qc_df[f"{frame_pair[0]}_{frame_pair[1]}"] = frame_qc_col
+
             if qc_pass:
                 self.qc_passed.append(frame_pair)
+
+        if not qc_pass:
+            # write the df into the csv file, get current time as the file name
+            current_time = datetime.now().strftime("%Y-%m-%d_%H-%M")
+            qc_file_name = f"qc_{current_time}.csv"
+            qc_df.to_csv(os.path.join(self.save_path, qc_file_name), index=False)
 
         # if there is no qc frames, jump a message box
         if len(self.qc_frames) == 0:
@@ -759,7 +783,8 @@ class Label3D(Animator):
             button = msg.exec()
             return
 
-        # if there are qc frames, jump a new label3d window for the qc frames
+        # if there are qc frames, jump a new label3d window for the qc frames, -> save the joint different into a excel file in the output folder
+        # TODO: the message box should now be closed
         else: 
             # jump a message box to show the qc frames
             msg = QMessageBox()
@@ -772,6 +797,8 @@ class Label3D(Animator):
 
             # update the frames info into the main window status bar
             self.update_status.emit(f"Quality Check: frame {self.qc_frames} need to be checked")
+
+
 
         # save the qc pass indexes
         save_path = os.join(self.save_path, "qc_passed.npy")
