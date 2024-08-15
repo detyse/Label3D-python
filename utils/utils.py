@@ -29,17 +29,15 @@ def read_json_skeleton(json_file):
         data = json.load(f)
     return data
 
-
-# TODO: the config load should be fine if the the quality control is not in the yaml file, 
+# TODO: check the yaml load and add the error handling
+# in the loading stage, the order is frames/videos -> index -> quality control
 @dataclass
 class LoadYaml:
     yaml_file: str = ""
     data: dict = field(default_factory=dict, init=False)
 
-
     def __post_init__(self, ):
         self.load_yaml()
-
 
     def load_yaml(self):
         try:
@@ -50,6 +48,7 @@ class LoadYaml:
             print(f"Error loading YAML file: {e}")
 
 
+    # here get all the params and save the numpy files
     def get_all_params(self):
         params = {}
         
@@ -69,8 +68,65 @@ class LoadYaml:
 
         # the frame indexes should be the indexes file in the save path
         save_folder = self.data["save_path"]
+
+        # FIXME: the index file load method? should we expose the api to user?
         index_file = os.path.join(save_folder, 'indexes.npy')
         params['frame_indexes'] = index_file        # here the frame index have a higher priority than the frame_num2label
+        return params
+    
+    # FIXME: consider the reload, if the indexes and frames are already stored, we could just load them directly
+    def get_params(self, ):
+        params = {}
+        params['cam_params'] = self.unpack_cam_params()
+        params['skeleton_path'] = self.data["skeleton_path"]
+        params['save_path'] = self.data["save_path"]
+        params['video_folder'] = self.data["video_folder"]
+
+        # create the index and the frames here
+        save_folder = self.data["save_path"]
+
+        # NOTE: if the frames is stored in npy file, just load the npy file?
+        # no, we should handle the npy and the mp4 in the same way
+        # build the frames file, if the index is given,
+        # NOTE: if the index is given, the frame_num2label is not used, 
+        # and the index should be stored in a numpy array and should be unduplicated and in the range of the total frames
+        index_file = self.data["given_frame_indexes"]
+        
+        params['frame_num2label'] = self.data["frame_num2label"]
+        sample_num = self.data["frame_num2label"]
+        
+        params['quality_control_on'] = self.data["quality_control_on"]
+
+        # not the first loading, use the indexes file to check that? 
+    
+        the_index_file = os.path.join(save_folder, "indexes.npy")
+        if os.path.exists(the_index_file):
+            # load the index file
+            indexes = np.load(the_index_file)
+        else:
+            # get index, no duplicate
+            if params.get('frame_indexes'):
+                indexes = np.load(index_file)
+            else: 
+                # check the index file 
+                indexes, total_frames = self.get_index(sample_num)
+
+            # assert index
+            assert indexes.max() < total_frames and indexes.min() >= 0, "The frame index is out of the total frames"
+
+        if params.get('quality_control_on'):
+            final_indexes = self.build_qc_index(indexes)
+            # save the index file
+        else:
+            final_indexes = indexes
+
+        # build the frames
+        self.build_frames(final_indexes)
+
+        # save the index file should be the last step to load the params
+        np.save(the_index_file, final_indexes)
+        params['frame_indexes'] = the_index_file
+            
         return params
 
 
@@ -84,26 +140,95 @@ class LoadYaml:
         return load_camParams
     
 
-    # no use now
-    def get_video_folder(self, ):
-        video_folder = self.data["video_folder"]        # the folder path
+    # function to build up the index, when the index is not given
+    # and the index should uniform sampled from the total frames
+    # before quality control, 
+    def get_index(self, sample_num=None):
+        video_folder = self.data["video_folder"]
+
         view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
         view_folders.sort()
 
-        # join the path
-        view_folders = [os.path.join(video_folder, f) for f in view_folders]
-        return view_folders
+        the_folder = view_folders[0]
+        # the video path accept '.mp4' and '.avi' and '.npy'
+        video_path = os.path.join(video_folder, the_folder, '0.mp4')
+        if not os.path.exists(video_path):
+            video_path = os.path.join(video_folder, the_folder, '0.avi')
+        
+        # if the video path is exist, read the video using cv2
+        if os.path.exists(video_path):
+            cap = cv2.VideoCapture(video_path)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            cap.release()
+        else:
+            video_path = os.path.join(video_folder, the_folder, '0.npy')
+            total_frames = np.load(video_path).shape[0]     # the frames stacked in the first dimention
+            if not os.path.exists(video_path):
+                raise ValueError("The video path is not available, please check the video path")
+            
+        # 
+        if sample_num is None or sample_num == 0 or sample_num > total_frames:
+            indexes = np.arange(total_frames)
+        else:
+            indexes = np.linspace(0, total_frames-1, sample_num, dtype=int)
+    
+        return indexes, total_frames
+
+    
+    # need shuffle and duplicate the index
+    def build_qc_index(self, indexes):      # and the index is required
+        # duplicate the index and shuffle
+        indexes = indexes.repeat(2)
+        indexes = np.random.shuffle(indexes)
+        return indexes
     
 
-    def build_up_frames_npy(self, ):
-        # could get/save the index in video folder
+    # the function to build the frames, indexes is required
+    # assert the video not aligned 
+    def build_frames(self, indexes):
         video_folder = self.data["video_folder"]
         save_folder = self.data["save_path"]
 
         view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
         view_folders.sort()
 
-        # get the index file
+        # TODO: assert the video frames number not aligned, a time cost function 
+        frames_num_list = []
+        for view_folder in view_folders:
+            video_path = os.path.join(video_folder, view_folder, '0.mp4')
+            if not os.path.exists(video_path):
+                video_path = os.path.join(video_folder, view_folder, '0.avi')
+            if not os.path.exists(video_path):
+                video_path = os.path.join(video_folder, view_folder, '0.npy')
+            
+            frames = frame_sampler(video_path, indexes)
+            npy_folder = os.path.join(save_folder, "frames", view_folder)
+            if not os.path.exists(npy_folder):
+                os.makedirs(npy_folder)
+            npy_file = os.path.join(npy_folder, 'frames.npy')
+            np.save(npy_file, frames)
+            
+        return
+
+
+    # NOTE: receive the index and get the frames stored into the npy file
+    def build_up_frames_npy(self, ):
+        # could get/save the index in video folder
+        video_folder = self.data["video_folder"]        
+        # the video folder format is:
+        # video_folder
+        #   - view1
+        #       - 0.mp4
+        #   - view2
+        #       - 0.mp4
+        #   - ...
+
+        save_folder = self.data["save_path"]
+
+        view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
+        view_folders.sort()
+
+        # get the index file, read the index file from save folder
         index_file = os.path.join(save_folder, 'indexes.npy')
         if os.path.exists(index_file):
             print("Already have the index file")
@@ -114,7 +239,7 @@ class LoadYaml:
         video_path = os.path.join(video_folder, view_folder, '0.mp4')
         if not os.path.exists(video_path):
             video_path = os.path.join(video_folder, view_folder, '0.avi')
-
+        
         cap = cv2.VideoCapture(video_path)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
@@ -131,7 +256,6 @@ class LoadYaml:
             if frame_index.max() >= total_frames or frame_index.min() < 0:
                 print("The frame index is out of the total frames")
                 raise ValueError("The frame index is out of the total frames")
-
             # TODO: add other frame check here, like the index could not have duplicated values
 
         # TODO: add a check for npy file
@@ -151,10 +275,10 @@ class LoadYaml:
                 os.makedirs(npy_folder)
             npy_file = os.path.join(npy_folder, 'frames.npy')
             np.save(npy_file, frames)
-        
+
         return
 
-
+    
     # 方便后续处理
     def build_uniform_sample_indexes(self, ):
         video_folder = self.data["video_folder"]
@@ -211,46 +335,33 @@ class LoadYaml:
             np.save(npy_file, frames)
 
         return 
-    
+
 
 import cv2
 import numpy as np
 # function or class? function
 # this function for building a frames npy for labeling
 # NOTE: do not need to take care of the multi folder problem
+# TODO: COULD WE SPEED THIS UP?
 def frame_sampler(video_path, frame_index):
-    cap = cv2.VideoCapture(video_path)
+    # if the video is npy file
+    if video_path.endswith('.npy'):
+        frames = np.load(video_path)
+        frames = frames[frame_index]
+        return frames
 
-    # # get the frame size of the video
-    # frame_width = int(cap.get(3))       # no use
-    # frame_height = int(cap.get(4))      # no use
-    # # print(frame_width, frame_height)
+    else: 
+        cap = cv2.VideoCapture(video_path)
+        frames = []
+        for index in frame_index:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, index)     # 反复横跳 
+            ret = cap.grab()
+            if not ret:
+                break
+            ret, frame = cap.retrieve()
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frames.append(rgb_frame)
+        cap.release()
+        frames = np.array(frames)
 
-    # # get the total number of frames
-    # total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))       # no use
-    # index_length = len(frame_index)                             # no use
-    
-    frames = []
-    # write the frames into the npy file
-    # the frame index is not sorted, should 
-    for index in frame_index:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, index)     # 反复横跳 
-
-        ret = cap.grab()
-        if not ret:
-            break
-        
-        ret, frame = cap.retrieve()
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        frames.append(rgb_frame)
-    cap.release()
-    
-    frames = np.array(frames)
-
-    # ? should save the npy file for future analysis ?  should not be here
-    # dir_path = os.path.dirname(video_path)
-    # if save:
-        # np.save(os.path.join(dir_path, 'frames.npy'), frames)
-    
     return frames

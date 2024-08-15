@@ -27,6 +27,7 @@ class Label3D(Animator):
         # assert
         self.camParams = camParams          # the camera parameters
         self.video_folder = video_folder        # return a list of video_path for each view
+        # now the property is meaningless
         
         # will be a just a folder
         self.skeleton = read_json_skeleton(skeleton)
@@ -35,7 +36,7 @@ class Label3D(Animator):
         self.save_path = save_path
 
         self.views_video = self.get_views_video()        # the video path for each view, the video_folder    
-
+        
         assert len(self.camParams) == len(self.views_video)
         self.view_num = len(self.camParams)
 
@@ -49,16 +50,12 @@ class Label3D(Animator):
         self._init_properties()
         self._initGUI()
         self._load_labels()
-    
+        
     # 
     def get_views_video(self, ):
-        # if there is no frames file in the output folder, read the mp4 videos 
-        # if there is a frames.npy file in the output folder, read the frames.npy file
-        # there must have the frame.npy file 
+        # just read the frames in the output folder
         video_folder = self.save_path
         frames_path = os.path.join(video_folder, "frames")
-        # if not os.path.exists(frames_path):
-        #     video_folder = self.video_folder
         
         view_folders = [f for f in os.listdir(frames_path) if os.path.isdir(os.path.join(frames_path, f))]
         view_folders.sort()
@@ -108,7 +105,7 @@ class Label3D(Animator):
 
         self.current_joint = None
         self.current_joint_idx = None
-
+        
         self.joints3d = np.full((self.nFrames, len(self._joint_names), 3), np.nan)          # NOTE: data to be saved
         
         # for Jiehan: add the original label points saving (not reprojected points) # quit large

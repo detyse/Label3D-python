@@ -32,9 +32,6 @@
 # add we test our videos and the params
 # update: load the video frames at the first place, do not nest the loader in to deeper layer
 
-# TODO: add a new slot which will receive and update the signal from the label3d, and update the status bar
-# TODO: add error handlers
-# TODO: change the GUI block when loading the frames, could only use another thread to load the frames
 
 import os
 import sys
@@ -65,7 +62,7 @@ class ConfigWidget(QWidget):
     def initUI(self):
         # Create a grid layout
         layout = QGridLayout()
-
+    
         # video folder path
         self.video_path_label = QLabel("Video Folder: ")
         self.video_path = QLineEdit()
@@ -185,25 +182,13 @@ class ConfigWidget(QWidget):
         
         try: 
             config_path = self.config_path.text()
-            
+
             # if the config path is exist, then just load the config file
             if config_path:
                 self.yaml_path = config_path
 
-                ## temp code to fit the previous config file
-                # write the qc mode to the current config yaml file
                 with open(config_path, 'r') as f:
                     config = yaml.load(f, Loader=yaml.FullLoader)
-                
-                # if there is no qc_mode in the config file, then add the qc_mode to the config file
-                # qc_mode = self.quality_control.isChecked()
-                # config['quality_control_on'] = qc_mode
-
-                # write the new config into the yaml file
-                # with open(config_path, 'w') as f:
-                #     # print(f"the config - {config}")
-                #     yaml.dump(config, f)
-                ## temp to here
 
                 self.load_config_thread()
 
@@ -213,10 +198,10 @@ class ConfigWidget(QWidget):
                 skeleton_path = self.skeleton_path.text()
                 save_path = self.save_path.text()
                 frame_indexes = self.load_index.text()
-
+                
                 if not os.path.exists(save_path):
                     os.makedirs(save_path)
-
+                
                 # if any is empty, then show a warning
                 if not save_path or not video_folder or not cam_params or not skeleton_path:
                     QMessageBox.warning(self, "Warning", "Please fill the config", QMessageBox.Ok)
@@ -332,7 +317,7 @@ class LoadConfigWorker(QObject):
     @Slot()
     def load_config(self, ):
         loader = LoadYaml(self.yaml_path)
-        params = loader.get_all_params()
+        params = loader.get_params()
         if params:
             self.finished.emit(params)
         else:
@@ -359,7 +344,7 @@ class MainWindow(QMainWindow):
         self.args = args
         self.kwargs = kwargs
         self.initUI()
-   
+    
 
     def initUI(self, ):
         self.setWindowTitle("3D Labeling Tool")
@@ -416,7 +401,6 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def updateStatusBar(self, new_text):
         self.statusBar.showMessage(new_text)
-
 
 
 def main():

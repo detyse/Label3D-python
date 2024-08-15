@@ -1,6 +1,8 @@
 # animator for video display
 # NOTE: the data stored in the item is immutable, so the data should reset after changing the stored data
 
+# NOTE: set the z-value for each item, the z-value of pix set to 0, lines for 1, points for 2
+
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QWheelEvent
 import cv2
 import numpy as np
@@ -108,6 +110,7 @@ class VideoAnimator(Animator):
         # i think we are not using this right now, all the video will be saved as npy file
         # because we want to solve the GUI block problem
         # if there is no npy file, load the video file
+        # the no use
         for file in file_list:
             if file == "0.mp4" or file == "0.avi":
                 frame_num_list = []
@@ -361,6 +364,7 @@ class VideoAnimator(Animator):
             # print("animator - plot_marker_and_lines called -- create marker")
             marker = QGraphicsEllipseItem(-self.marker_size//2, -self.marker_size//2, self.marker_size, self.marker_size)
             marker.setPos(pos[0], pos[1])
+            marker.setZValue(2)         # the z-value of the marker is 2
             brush = QBrush(color2QColor(self._color[joint_idx+1]))
             brush.setStyle(Qt.SolidPattern)
             marker.setBrush(brush)
@@ -387,6 +391,7 @@ class VideoAnimator(Animator):
 
         self.scene.update()
 
+
     # called in label3d or animator
     def highlight_marker(self, marker_item):
         effect = QGraphicsDropShadowEffect()
@@ -402,13 +407,13 @@ class VideoAnimator(Animator):
     def update_or_create_connection(self, marker1, marker2, color):
         connection = next((c for c in marker1.data(self.d_lines) if marker2 == c.theOtherPoint(marker1)), None)
         # the connection should always be None
-
+        
         if connection:
             connection.updateLine()
         else:
             connection = Connection(marker1, marker2, color)
             self.scene.addItem(connection)
-
+            
             # here should be called t3 times
             # print("append lines")
             marker1_connections = marker1.data(self.d_lines)
@@ -492,7 +497,6 @@ class VideoAnimator(Animator):
                 view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
                 scene_pos = self.view.mapToScene(view_pos)
                 self.plot_marker_and_lines([scene_pos.x(), scene_pos.y()], reprojection=False)                  # plot the marker       # 
-
 
             # FIXME: the delete function on the first joint could not work properly
             elif event.button() == Qt.RightButton and event.modifiers() == Qt.ControlModifier:
@@ -604,6 +608,7 @@ class Connection(QGraphicsLineItem):        # the line is not necessarily combin
         start_pos = self.start_point.scenePos()
         end_pos = self.end_point.scenePos()
         self.setLine(QLineF(start_pos, end_pos))
+        self.setZValue(1)         # the z-value of the line is 1
         # print(f"update line: {start_pos.x()}, {start_pos.y()} to {end_pos.x()}, {end_pos.y()}")
 
 
