@@ -1,13 +1,37 @@
+# update 20240716 
+# 1. find the bug of cannot delete the first joint 
+# 2. add the function that the qc are not require to label all the frames
+# 3. change the storage place of sampled frames
+# 4. save the qc passed indexes for usage
+
+# new update 20240717
+# 1. load cam params add the mat choose
+# 2. change the "load config" button to "start" button
+# 3. add load defined index option, the index is not required to be depulicated
+# 4. change the "load config" button to "load history" button (the config file is the highest priority, should we change that?)
+# 5. add preview module, which could repidly browse the video frames
+# 6. put the frames npy and the indexes into the output 
+# 7. the quality control is allowed to implement when the frames are not all labeled
+# 8. show the current frame index 
+# 9. save the qc passed indexes for usage
+# 10. concat the frames of all views into a single file
+# 11. GUI update, change the GUI: 
+#       the config window, add the load method to load the defined indexes  
+#       also do not block when loading the frames
+#       main window, add preview button at the bottom
+# 12. change some button
+# 13. change the video loading in the load config, instead of animator
+
+# a temp stable vision
+
 # here is the plan, time is 2024-05-26
 # we use the yaml to manage the config file for the 3D label, instead of a GUI
 # and we add a multi video method to label multiple videos at once (which requires properlly handling the animator loading )
-# and we add the original label saving funtion 
+# and we add the original label saving funtion
 # also add the video 
 # add we test our videos and the params
 # update: load the video frames at the first place, do not nest the loader in to deeper layer
 
-# TODO: add a new slot which will receive and update the signal from the label3d, and update the status bar
-# TODO: add error handlers
 
 import os
 import sys
@@ -28,55 +52,6 @@ from scipy.io import loadmat
 import traceback
 
 
-class LoadConfigDialog(QDialog):
-    def __init__(self, ):
-        super().__init__()
-        self.initUI()
-
-    def initUI(self, ):
-        layout = QVBoxLayout(self)
-
-        path_layout = QHBoxLayout()
-        self.label = QLabel("Config File: ")
-        self.path = QLineEdit()
-        self.browse = QPushButton("...")
-
-        path_layout.addWidget(self.label)
-        path_layout.addWidget(self.path)
-        path_layout.addWidget(self.browse)
-
-        self.browse.clicked.connect(self.file_dialog)
-
-        layout.addLayout(path_layout)
-
-        self.load = QPushButton("Load Config")
-        self.load.clicked.connect(self.load_config)
-
-        layout.addWidget(self.load)
-
-        self.setLayout(layout)
-
-
-    def file_dialog(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Choose Configuration File", "", "Config Files (*.yaml *.json);;All Files (*)")
-        if file_path:
-            self.path.setText(file_path)
-        else:
-            self.path.setText('File not selected')
-
-
-    def load_config(self, ):
-        file_path = self.path.text()
-        if file_path:
-            self.accept()
-        else:
-            QMessageBox.warning(self, self, "Error", "Please select a valid directory.", QMessageBox.Ok)
-
-
-    def getConfigPath(self, ):
-        return self.path.text()
-
-
 class ConfigWidget(QWidget):
     def __init__(self, ):
         super().__init__()
@@ -87,7 +62,7 @@ class ConfigWidget(QWidget):
     def initUI(self):
         # Create a grid layout
         layout = QGridLayout()
-
+    
         # video folder path
         self.video_path_label = QLabel("Video Folder: ")
         self.video_path = QLineEdit()
@@ -123,23 +98,32 @@ class ConfigWidget(QWidget):
         layout.addWidget(self.frame_num2label, 3, 1)       # row 3, column 1
         # Frame number to label could be empty; no column 2 widget needed here
 
+        # add a load index, the index have higher priority then the frame number to label
+        self.load_index_label = QLabel("Load Index: ")
+        self.load_index = QLineEdit()
+        self.load_index_browse = QPushButton("...")
+        self.load_index_browse.clicked.connect(lambda: self.file_dialog(self.load_index))
+        layout.addWidget(self.load_index_label, 4, 0)     # row 4, column 0
+        layout.addWidget(self.load_index, 4, 1)           # row 4, column 1
+        layout.addWidget(self.load_index_browse, 4, 2)    # row 4, column 2
+
         # set save path
         self.save_path_label = QLabel("Save Path: ")
         self.save_path = QLineEdit()
         self.save_path_label_browse = QPushButton("...")
         self.save_path_label_browse.clicked.connect(lambda: self.dir_dialog(self.save_path))
-        layout.addWidget(self.save_path_label, 4, 0)       # row 4, column 0
-        layout.addWidget(self.save_path, 4, 1)             # row 4, column 1
-        layout.addWidget(self.save_path_label_browse, 4, 2) # row 4, column 2
+        layout.addWidget(self.save_path_label, 5, 0)       # row 4, column 0
+        layout.addWidget(self.save_path, 5, 1)             # row 4, column 1
+        layout.addWidget(self.save_path_label_browse, 5, 2) # row 4, column 2
 
         # set the config file path
         self.config_path_label = QLabel("Config File: ")
         self.config_path = QLineEdit()
         self.config_path_browse = QPushButton("...")
         self.config_path_browse.clicked.connect(lambda: self.file_dialog(self.config_path))
-        layout.addWidget(self.config_path_label, 5, 0)     # row 5, column 0
-        layout.addWidget(self.config_path, 5, 1)           # row 5, column 1
-        layout.addWidget(self.config_path_browse, 5, 2)    # row 5, column 2
+        layout.addWidget(self.config_path_label, 6, 0)     # row 5, column 0
+        layout.addWidget(self.config_path, 6, 1)           # row 5, column 1
+        layout.addWidget(self.config_path_browse, 6, 2)    # row 5, column 2
         # The config_path could be empty; thus, handle it accordingly
 
         # Set initial row and column stretches as needed
@@ -157,120 +141,187 @@ class ConfigWidget(QWidget):
         self.load_button.clicked.connect(self.write_config)     # update the config and load the config
         button_layout.addWidget(self.load_button)
 
+        # add the loading indicator for the label3d widget
+        self.loading_indicator = QLabel("Input the config and load the config")
+        indicator_layout = QVBoxLayout()
+        indicator_layout.addWidget(self.loading_indicator)
+
         main_layout = QVBoxLayout()
         main_layout.addLayout(layout)
         main_layout.addLayout(button_layout)
+        main_layout.addLayout(indicator_layout)
 
         # set the default window size
         self.setGeometry(100, 100, 600, 300)
         self.setLayout(main_layout)
 
-
     # file dialog
     def file_dialog(self, line_edit):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Choose Configuration File", "", "Config Files (*.yaml *.json);;All Files (*)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Choose Configuration File", "", "Config Files (*.yaml *.json *.mat *.npy);;All Files (*)")
         if file_path:
             line_edit.setText(file_path)
-        else:
-            line_edit.setText('File not selected')
-
+        # else:
+        #     line_edit.setText('File not selected')
 
     # folder dialog
     def dir_dialog(self, line_edit):
         dir_path = QFileDialog.getExistingDirectory(self, "Choose Directory")
         if dir_path:
             line_edit.setText(dir_path)
-        else:
-            line_edit.setText('Directory not available')
-
+        # else:
+            # line_edit.setText('Directory not available')
 
     # write the selected config into yaml file for reference and load
     # connect to the load button
+    # TODO: change the message box indicator to the QLabel indicator
     def write_config(self, ):           # should read all the config then write into a yaml file
-        config_path = self.config_path.text()
+        # unable the load button
+        self.load_button.setEnabled(False)
+        self.loading_indicator.setText("Loading...")
+        self.loading_indicator.repaint()
         
-        # if the config path is exist, then update the config file
-        if config_path:
-            self.yaml_path = config_path
+        try: 
+            config_path = self.config_path.text()
 
-            ## temp code to fit the previous config file
-            # write the qc mode to the current config yaml file
-            with open(config_path, 'r') as f:
-                config = yaml.load(f, Loader=yaml.FullLoader)
-            
-            # if there is no qc_mode in the config file, then add the qc_mode to the config file
-            qc_mode = self.quality_control.isChecked()
-            config['quality_control_on'] = qc_mode
+            # if the config path is exist, then just load the config file
+            if config_path:
+                self.yaml_path = config_path
 
-            # write the new config into the yaml file
-            with open(config_path, 'w') as f:
-                # print(f"the config - {config}")
-                yaml.dump(config, f)
-            ## temp to here
+                with open(config_path, 'r') as f:
+                    config = yaml.load(f, Loader=yaml.FullLoader)
 
-            self.load_config()
+                self.load_config_thread()
 
-        else:
-            video_folder = self.video_path.text()
-            cam_params = self.cam_params.text()
-            skeleton_path = self.skeleton_path.text()
-            save_path = self.save_path.text()
-
-            if not os.path.exists(save_path):
-                os.makedirs(save_path)
-
-            # if any is empty, then show a warning
-            if not save_path or not video_folder or not cam_params or not skeleton_path:
-                QMessageBox.warning(self, "Warning", "Please fill the config", QMessageBox.Ok)
-                return
-            
-            if not self.frame_num2label.text():
-                frame_num2label = 0
             else:
-                frame_num2label = int(self.frame_num2label.text())
+                video_folder = self.video_path.text()
+                cam_params = self.cam_params.text()
+                skeleton_path = self.skeleton_path.text()
+                save_path = self.save_path.text()
+                frame_indexes = self.load_index.text()
+                
+                if not os.path.exists(save_path):
+                    os.makedirs(save_path)
+                
+                # if any is empty, then show a warning
+                if not save_path or not video_folder or not cam_params or not skeleton_path:
+                    QMessageBox.warning(self, "Warning", "Please fill the config", QMessageBox.Ok)
+                    return
+                
+                if not self.frame_num2label.text():
+                    frame_num2label = 0
+                else:
+                    frame_num2label = int(self.frame_num2label.text())
 
-            qc_mode = self.quality_control.isChecked()
+                qc_mode = self.quality_control.isChecked()
 
-            # write the config into a yaml file
-            config = {
-                "video_folder": video_folder,           # the video list is defined in the video_folder
-                "cam_params": cam_params,
-                "skeleton_path": skeleton_path,
-                "frame_num2label": frame_num2label,
-                "save_path": save_path,
-                "quality_control_on": qc_mode
-            }
+                # write the config into a yaml file
+                config = {
+                    "video_folder": video_folder,           # the video list is defined in the video_folder
+                    "cam_params": cam_params,
+                    "skeleton_path": skeleton_path,
+                    "frame_num2label": frame_num2label,
+                    "save_path": save_path,
+                    "quality_control_on": qc_mode,
+                    "given_frame_indexes": frame_indexes,
+                }
 
-            yaml_path = os.path.join(save_path, "config.yaml")
-            with open(yaml_path, 'w') as f:
-                yaml.dump(config, f)
-    
-            self.yaml_path = yaml_path
-            
-            # load the config file
-            self.load_config()
-
-
+                yaml_path = os.path.join(save_path, "config.yaml")
+                with open(yaml_path, 'w') as f:
+                    yaml.dump(config, f)
+                
+                self.yaml_path = yaml_path
+                
+                # load the config file
+                self.load_config_thread()
+        
+        except Exception as e:
+            self.load_button.setEnabled(True)
+            self.loading_indicator.setText("Error: " + str(e) + " === Please check the config file.")
+            raise e
     # 
-    def load_config(self, ):
+    # def load_config(self, ):
+    #     yaml_path = self.yaml_path
+    #     if yaml_path:
+    #         loader = LoadYaml(yaml_path)
+    #         params = loader.get_all_params()
+    #         if params:
+    #             self.loading_indicator.setText("Loading...")
+    #             self.loading_indicator.repaint()
+    #             # self.parent().startMainWindow(params)     # here is the loading function
+    #             self.close()
+    #         else:
+    #             QMessageBox.warning(self, "Load Error", "Failed to load configuration.", QMessageBox.OK)
+    #     else:
+    #         QMessageBox.warning(self, "Error", "The config file is not valid.", QMessageBox.Ok)
+    
+
+    # a new load config running in another thread that would not block the main thread
+    def load_config_thread(self, ):
         yaml_path = self.yaml_path
         if yaml_path:
-            loader = LoadYaml(yaml_path)
-            params = loader.get_all_params()
-            if params:
-                self.parent().startMainWindow(params)
-                self.close()
-            else:
-                QMessageBox.warning(self, "Load Error", "Failed to load configuration.", QMessageBox.OK)
+            self.load_worker = LoadConfigWorker(yaml_path)
+            self.load_thread = QThread()
+            self.load_worker.moveToThread(self.load_thread)
+            self.load_thread.started.connect(self.load_worker.load_config)
+            self.load_worker.finished.connect(self.on_load_finished)
+            self.load_worker.error.connect(self.on_load_error)
+            self.load_thread.start()
+            self.loading_indicator.setText("Loading...")
+            self.loading_indicator.repaint()
         else:
             QMessageBox.warning(self, "Error", "The config file is not valid.", QMessageBox.Ok)
 
 
-    # function to generate the video
-    # do we need to handle multi video data (with the same cam params) 既然写了就这么地吧
-    def frames_sample_and_save_the_index():
-        # put into the load config
-        return
+    # a load finish function
+    @Slot(dict)
+    def on_load_finished(self, params):
+        self.parent().startMainWindow(params)
+        self.load_thread.quit()
+        self.load_thread.wait()
+        self.close()
+
+
+    @Slot(str)
+    def on_load_error(self, error):
+        QMessageBox.warning(self, "Load Error", error, QMessageBox.Ok)
+        self.load_thread.quit()
+        self.load_thread.wait()
+
+
+# define the widget in the Application?
+# This object holds the event loop of your application - the core loop which governs all user interaciton with the GUI
+class MainApplication(QApplication):
+    def __init__(self, args):
+        super().__init__(args)
+        self.configWidget = ConfigWidget()
+        self.configWidget.show()
+        self.configWidget.parent = lambda: self     # set parent of the configwidget as the application 
+    
+    # NOTE: where the params comes from?
+    # this function will be called by the configWidget
+    def startMainWindow(self, params):
+        self.mainWindow = MainWindow(params)
+        self.mainWindow.show()
+
+
+# the worker for config load
+# NOTE: if not qc mode, the frame is loaded in the animator class, will may still block the main thread
+class LoadConfigWorker(QObject):
+    finished = Signal(dict)
+    error = Signal(str)
+
+    def __init__(self, yaml_path):
+        super().__init__()
+        self.yaml_path = yaml_path
+
+    @Slot()
+    def load_config(self, ):
+        loader = LoadYaml(self.yaml_path)
+        params = loader.get_params()
+        if params:
+            self.finished.emit(params)
+        else:
+            self.error.emit("Failed to load configuration.")
 
 
 class MainWindow(QMainWindow):
@@ -283,6 +334,7 @@ class MainWindow(QMainWindow):
         self.frame_num2label = params['frame_num2label']
         self.save_path = params['save_path']
         self.qc_mode = params['quality_control_on']
+        self.frame_indexes = params['frame_indexes']    # the frame indexes are not required to be depulicated
         
         # if the qc_mode is on, this index is a random sampled index with depulication
         # else the index is uniformly sampled
@@ -292,7 +344,7 @@ class MainWindow(QMainWindow):
         self.args = args
         self.kwargs = kwargs
         self.initUI()
-   
+    
 
     def initUI(self, ):
         self.setWindowTitle("3D Labeling Tool")
@@ -300,7 +352,7 @@ class MainWindow(QMainWindow):
         
         layout = QVBoxLayout()
         self.label3d = Label3D(camParams=self.camParams, video_folder=self.video_folder, skeleton=self.skeleton_path, frame_num2label=self.frame_num2label, save_path=self.save_path,
-                               qc_mode=self.qc_mode)        # newly added params
+                               frame_indexes=self.frame_indexes, qc_mode=self.qc_mode)        # newly added params
         # the frame index will generate automatically in the video folder
         layout.addWidget(self.label3d)
 
@@ -332,7 +384,7 @@ class MainWindow(QMainWindow):
                                 "5. Push S for label saving \n"
                                 "6. Push \"Ctrl + R\" to clear create joint markers \n"
                                 "7. Push \"Up / Down\" to change the jump speed \n"
-                                "8. Push [ / ] to change the contrast of the view image \n"
+                                "8. Push \"[ / ]\" to change the contrast of the view image \n"
                                 "...")
         self.manualBox.exec()
 
@@ -349,22 +401,6 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def updateStatusBar(self, new_text):
         self.statusBar.showMessage(new_text)
-
-
-# define the widget in the Application?
-# This object holds the event loop of your application - the core loop which governs all user interaciton with the GUI
-class MainApplication(QApplication):
-    def __init__(self, args):
-        super().__init__(args)
-        self.configWidget = ConfigWidget()
-        self.configWidget.show()
-        self.configWidget.parent = lambda: self     # set parent of the configwidget as the application 
-    
-    # NOTE: where the params comes from?
-    # this function will be called by the configWidget
-    def startMainWindow(self, params):
-        self.mainWindow = MainWindow(params)
-        self.mainWindow.show()
 
 
 def main():

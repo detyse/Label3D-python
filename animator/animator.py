@@ -1,6 +1,8 @@
 # animator for video display
 # NOTE: the data stored in the item is immutable, so the data should reset after changing the stored data
 
+# NOTE: set the z-value for each item, the z-value of pix set to 0, lines for 1, points for 2
+
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QWheelEvent
 import cv2
 import numpy as np
@@ -11,7 +13,7 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 
 
-class Animator(QWidget):  # inherit from QWidget
+class Animator(QWidget):    # inherit from QWidget
     '''
     A base class for all animators, mainly for **frame operation** which will used in all animator instances
     Also, it will be used for the sync of all animators
@@ -63,7 +65,7 @@ class VideoAnimator(Animator):
         self._color = skeleton["color"]              # the color of the joints
         self._joints_num = len(self._joint_names)        # total number of joints
         # NOTE: THESE PROPERTIES SHOULD NOT BE CHANGED IN THE CLASS, JUST FOR READ
-
+        
         # on this frame, f for only in this frame
         self.f_current_joint_idx = None         # the current joint index
         # this property only changed by the set_joint method
@@ -85,24 +87,30 @@ class VideoAnimator(Animator):
         # trivial properties
         self.marker_size = 10       # the size of the point
 
+        self.preview_mode = False       # the preview mode for the animator, if true, the animator could not be edited  
+
         self.initUI()
         # self.update_frame()         # not call in this class, for a better control  # called by the load_labels in label3d
         self._initView()
 
 
-    # NOTE: give up the multi video loading, will induce many problems
     # also just consider the npy file, do not consider the index frame
     # build the index
+    # load the frame files from output folder
     def load_videos(self, video_folder, label_num):
-        file_list = [f for f in os.listdir(video_folder) if os.path.isfile(os.path.join(video_folder, f))]
+        # file_list = [f for f in os.listdir(video_folder) if os.path.isfile(os.path.join(video_folder, f))]
+        file_list = os.listdir(video_folder)
 
         # if there is npy file, load the npy file
         for file in file_list:
             if file == "frames.npy":
                 frames = np.load(os.path.join(video_folder, file))
                 return frames
-            
+        
+        # i think we are not using this right now, all the video will be saved as npy file
+        # because we want to solve the GUI block problem
         # if there is no npy file, load the video file
+        # the no use
         for file in file_list:
             if file == "0.mp4" or file == "0.avi":
                 frame_num_list = []
@@ -143,150 +151,6 @@ class VideoAnimator(Animator):
         raise ValueError("No video file could load!")
 
 
-    # # NOTE: give up the multi video loading? now have the multi view loading function
-    # def load_videos(self, video_folder_list, label_num):      # the label num would not to use
-    #     # video_file_list is the list get from all the folders...
-    #     # 文件名固定： 0.mp4/avi for video, frames.npy for frames, do not consider the images
-    #     # if the folder have the frames.npy, load npy file, otherwise load the 0.mp4 video
-    #     # skip the corner case, if some view do not have the npy...
-    #     # get files in the folder, check if there is a npy file
-        
-    #     first_folder = video_folder_list[0]
-        
-    #     file_list = [f for f in os.listdir(first_folder) if os.path.isfile(os.path.join(first_folder, f))]
-    #     # all the video should be process in the same way
-      
-    #     # if there is npy file, load the npy file
-    #     for file in file_list:
-    #         if file.endswith(".npy"):
-    #             frames = None
-    #             for folder in video_folder_list:
-    #                 file = os.path.join(folder, file)
-    #                 frames_ = np.load(file)
-    #                 if frames_ is None:
-    #                     # error
-    #                     pass
-
-    #                 else:
-    #                     if frames is None:
-    #                         frames = frames_
-    #                     else:
-    #                         frames = np.concatenate((frames, frames_), axis=0)
-
-    #             return frames       # numpy array
-
-
-    #     # if there is no npy file, load the video file
-    #     for file in file_list:
-    #         if file == "0.mp4" or file == "0.avi":
-    #             frame_num_list = []
-    #             frame_index_list = []
-    #             frames = []
-    #             for video_folder in video_folder_list:
-    #                 video_file = os.path.join(video_folder, file)
-
-    #                 cap = cv2.VideoCapture(video_file)
-    #                 frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    #                 frame_num_list.append(frame_num)
-                    
-    #                 if label_num == 0 or label_num > frame_num:
-    #                     label_num = frame_num
-
-    #                 indexes = np.linspace(0, frame_num-1, label_num, dtype=int)
-    #                 frame_index_list.append(indexes)
-
-    #                 # if the frame number is index, then get the frame
-    #                 for index in indexes:
-    #                     cap.set(cv2.CAP_PROP_POS_FRAMES, index)
-
-    #                     ret = cap.grab()
-    #                     if not ret:
-    #                         break
-    #                     ret, frame = cap.retrieve()
-    #                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)      # 
-                        
-    #                     frames.append(rgb_frame)
-    #                 cap.release()
-                
-    #             return frames
-
-    
-    # consider of just output a list of frames, we just using a function to do the job
-    # def load_videos(self, video_file_list, label_num):      
-    #     # if the folder have the frames.npy, load npy file, otherwise load the 0.mp4 video
-    #     '''
-    #     the frame number not aligned situation is not considered
-    #     it is should be fine with a single video(which is the normal situation)
-    #     and assume all the videos want the same frame number
-
-    #     comment: pretty slow to load the video,
-    #                 test the other method. *grab and retrieve*
-    #     '''
-    #     '''
-    #     add a new condition to load image data as frames for labeling
-    #     '''
-    #     # get the file type, if the file is a directory, then load the images
-    #     if os.path.isdir(video_file_list[0]):
-    #         frames = []
-    #         for image_folder in video_file_list:
-    #             image_list = os.listdir(image_folder)
-    #             image_list.sort()
-    #             for image_file in image_list:
-    #                 frame = cv2.imread(image_file)
-    #                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    #                 frames.append(rgb_frame)
-
-    #         print(f"load image frame number {len(frames)}")
-    #         return frames
-        
-    #     # else if the file ends with npy, then load the frames
-    #     elif video_file_list[0].endswith(".npy"):
-    #         frames = None
-    #         for npy_file in video_file_list:
-    #             frame = np.load(npy_file)
-    #             print(f"frame shape: {frame.shape}")
-    #             if frames is None:
-    #                 frames = frame
-    #             else:
-    #                 frames = np.concatenate((frames, frame), axis=0)
-            
-    #         frames = list(frames)
-    #         print(f"load npy frame number {len(frames)}")
-    #         return frames
-
-    #     # else if the file ends with mp4 or avi, then load the video
-    #     elif video_file_list[0].endswith(".mp4") or video_file_list[0].endswith(".avi"):
-    #         frame_num_list = []
-    #         frame_index_list = []
-    #         frames = []
-    #         for video_file in video_file_list:
-    #             cap = cv2.VideoCapture(video_file)
-    #             frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    #             frame_num_list.append(frame_num)
-                
-    #             if label_num == 0 or label_num > frame_num:
-    #                 label_num = frame_num
-
-    #             indexes = np.linspace(0, frame_num-1, label_num, dtype=int)
-    #             frame_index_list.append(indexes)
-
-    #             # if the frame number is index, then get the frame
-    #             for index in indexes:
-    #                 cap.set(cv2.CAP_PROP_POS_FRAMES, index)
-
-    #                 ret = cap.grab()
-    #                 if not ret:
-    #                     break
-    #                 ret, frame = cap.retrieve()
-    #                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)      # 
-                    
-    #                 frames.append(rgb_frame)
-    #             cap.release()
-            
-    #         print(f"load video frame number {len(frames)}")
-    #     return frames
-
-
     def initUI(self, ):
         # set cursor
         self.setMouseTracking(True)
@@ -323,6 +187,15 @@ class VideoAnimator(Animator):
     def set_joint(self, joint_idx):
         # print(f"animator - set_joint function called, joint index: {joint_idx}")
         self.f_current_joint_idx = joint_idx
+
+        # highlight the joint marker
+        for joint in self.f_joints2markers.values():
+            self.highlight_marker(joint)
+        
+        # normal the other markers
+        for idx in self.f_exist_markers:
+            if idx != joint_idx:
+                self.normal_marker(self.f_joints2markers[idx])
         return True
 
 
@@ -331,7 +204,8 @@ class VideoAnimator(Animator):
         return True
 
 
-    def get_marker_2d(self, frame=None, joint_idx=None):          # will not change the data, should be safe 
+    # NOTE: 
+    def get_marker_2d(self, frame=None, joint_idx=None):       
         if frame is None and joint_idx is None:
             return self.frames_markers[self.frame, self.f_current_joint_idx]
         elif frame is None or joint_idx is None:
@@ -407,6 +281,46 @@ class VideoAnimator(Animator):
             ptr = image.constBits()
             arr = np.array(ptr).reshape(height, width, 3)
 
+            mean = np.mean(arr)
+            adjusted_array = (arr - mean) * self.contrast_factor + mean
+            adjusted_array = np.clip(adjusted_array, 0, 255).astype(np.uint8)
+
+            # update the image
+            q_image = QImage(adjusted_array.data, adjusted_array.shape[1], adjusted_array.shape[0], adjusted_array.shape[1]*3, QImage.Format_RGB888)
+            pixmap = QPixmap.fromImage(q_image)
+
+            # update the pixmap
+            if hasattr(self, 'pixmap_item') and self.pixmap_item is not None:
+                self.pixmap_item.setPixmap(pixmap)
+            else:
+                self.pixmap_item = self.scene.addPixmap(pixmap)
+
+            self.scene.update()         # NOTE: try to directly update the pixmap, do not clear the scene, hope all is right
+            # otherwise could only call the update_frame method which have bug
+        return 
+
+
+    # NOTE: this function should be called by the label3d for sync contrast update
+    def contrast_change(self, contrast_factor):
+        if contrast_factor is None:
+            return
+        
+        self.contrast_factor = contrast_factor
+        
+        if self.pixmap is None:
+            print("no frame image loaded")
+            return 
+        
+        else:
+            print(f"contrast factor: {self.contrast_factor}")
+            image = self.pixmap.toImage()
+            image = image.convertToFormat(QImage.Format_RGB888)
+
+            width = image.width()
+            height = image.height()
+            ptr = image.constBits()
+            arr = np.array(ptr).reshape(height, width, 3)
+
             print("Original array shape:", arr.shape)
             print("Original array mean:", np.mean(arr))
 
@@ -426,15 +340,13 @@ class VideoAnimator(Animator):
             else:
                 self.pixmap_item = self.scene.addPixmap(pixmap)
 
-            self.scene.update()         # NOTE: try to directly update the pixmap, do not clear the scene, hope all is right
-            # otherwise could only call the update_frame method which have bug
-        return 
+            self.scene.update()
+        return
 
 
     # rewrite the functions
     def plot_marker_and_lines(self, pos, joint_idx=None, reprojection=False):
         # print("animator - plot_marker_and_lines called")
-
         if joint_idx is None:
             if self.f_current_joint_idx is None:
                 return
@@ -447,11 +359,12 @@ class VideoAnimator(Animator):
             # print("animator - plot_marker_and_lines called -- reset marker")
             self.scene.update()
             return
-    
+        
         else:
             # print("animator - plot_marker_and_lines called -- create marker")
             marker = QGraphicsEllipseItem(-self.marker_size//2, -self.marker_size//2, self.marker_size, self.marker_size)
             marker.setPos(pos[0], pos[1])
+            marker.setZValue(2)         # the z-value of the marker is 2
             brush = QBrush(color2QColor(self._color[joint_idx+1]))
             brush.setStyle(Qt.SolidPattern)
             marker.setBrush(brush)
@@ -460,6 +373,10 @@ class VideoAnimator(Animator):
             self.scene.addItem(marker)
             self.f_joints2markers[joint_idx] = marker
             self.f_exist_markers.append(joint_idx)
+
+            # potential bugs?
+            if joint_idx == self.f_current_joint_idx:
+                self.highlight_marker(marker)
 
             self.frames_markers[self.frame, joint_idx] = pos
             if not reprojection:
@@ -475,16 +392,28 @@ class VideoAnimator(Animator):
         self.scene.update()
 
 
+    # called in label3d or animator
+    def highlight_marker(self, marker_item):
+        effect = QGraphicsDropShadowEffect()
+        effect.setColor(QColor())
+        effect.setBlurRadius(5)
+        marker_item.setGraphicsEffect(effect)
+
+
+    def normal_marker(self, marker_item):
+        marker_item.setGraphicsEffect(None)
+
+
     def update_or_create_connection(self, marker1, marker2, color):
         connection = next((c for c in marker1.data(self.d_lines) if marker2 == c.theOtherPoint(marker1)), None)
         # the connection should always be None
-
+        
         if connection:
             connection.updateLine()
         else:
             connection = Connection(marker1, marker2, color)
             self.scene.addItem(connection)
-
+            
             # here should be called t3 times
             # print("append lines")
             marker1_connections = marker1.data(self.d_lines)
@@ -506,10 +435,8 @@ class VideoAnimator(Animator):
             self.original_markers[self.frame, joint_idx] = new_pos
 
         for connection in item.data(self.d_lines):
-            # print("there should be lines!")
-            # print(connection)
             connection.updateLine()
-
+    
 
     # 
     def delete_marker(self, joint_idx=None):
@@ -537,50 +464,54 @@ class VideoAnimator(Animator):
             self.scene.update()
     
 
-    ## 
+    # ## NOTE: contrast change for single frame 
+    # def keyPressEvent(self, event):
+    #     # ignore all the key press event, leave it to the parent widget
+    #     # except sevel key press event
+    #     # only for contrast adjust other events will be ignored
+    #     if event.key() == Qt.Key_BracketLeft:
+    #         print("key press event (animator): bracket left")
+    #         self.contrast_factor -= 0.1
+    #         if self.contrast_factor < 0.1:
+    #             self.contrast_factor = 0.1
+    #         self.change_frame_contract()        # hope not need to use the update_frame method
+    #     elif event.key() == Qt.Key_BracketRight:
+    #         print("key press event (animator): bracket right")
+    #         self.contrast_factor += 0.1
+    #         if self.contrast_factor > 5.0:
+    #             self.contrast_factor = 5.0
+    #         self.change_frame_contract()
+    #     else:
+    #         event.ignore()
+
+
     def keyPressEvent(self, event):
-        # ignore all the key press event, leave it to the parent widget
-        # except sevel key press event
-        # only for contrast adjust other events will be ignored
-        if event.key() == Qt.Key_BracketLeft:
-            print("key press event (animator): bracket left")
-            self.contrast_factor -= 0.1
-            if self.contrast_factor < 0.1:
-                self.contrast_factor = 0.1
-            self.change_frame_contract()        # hope not need to use the update_frame method
-        elif event.key() == Qt.Key_BracketRight:
-            print("key press event (animator): bracket right")
-            self.contrast_factor += 0.1
-            if self.contrast_factor > 5.0:
-                self.contrast_factor = 5.0
-            self.change_frame_contract()
-        else:
-            event.ignore()
+        event.ignore()
 
     
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
-            # pos = event.pos()           # the event pos relative to the widget, there is a position shift between the widget and the view
-            # get the true position in the view
-            view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
-            scene_pos = self.view.mapToScene(view_pos)
-            # print(f"mouse position in the view: {view_pos.x()}, {view_pos.y()}")
-            # pos = self.view.mapToScene(pos)     # get the position
-            self.plot_marker_and_lines([scene_pos.x(), scene_pos.y()], reprojection=False)                  # plot the marker       # 
-            # print(f"mouse press point position: {scene_pos.x()}, {scene_pos.y()}")
-            # print("Current transformation matrix:", self.view.transform())
-        elif event.button() == Qt.RightButton and event.modifiers() == Qt.ControlModifier:
-            # the pos could be mismatch
-            # TODO: change the function that get the pos in the scene
-            view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
-            scene_pos = self.view.mapToScene(view_pos)
-            item = self.scene.itemAt(scene_pos, self.view.transform())
-            if isinstance(item, QGraphicsEllipseItem):
-                joint_idx = item.data(self.d_joint_index)
-                if joint_idx is not None:
-                    self.delete_marker(joint_idx)
-                else:
-                    print("joint index is None")
+        if not self.preview_mode:
+            if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
+                # pos = event.pos()           # the event pos relative to the widget, there is a position shift between the widget and the view
+                # get the true position in the view
+                view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
+                scene_pos = self.view.mapToScene(view_pos)
+                self.plot_marker_and_lines([scene_pos.x(), scene_pos.y()], reprojection=False)                  # plot the marker       # 
+
+            # FIXME: the delete function on the first joint could not work properly
+            elif event.button() == Qt.RightButton and event.modifiers() == Qt.ControlModifier:
+                view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
+                scene_pos = self.view.mapToScene(view_pos)
+                item = self.scene.itemAt(scene_pos, self.view.transform())
+                if isinstance(item, QGraphicsEllipseItem):
+                    joint_idx = item.data(self.d_joint_index)
+                    if joint_idx is not None:
+                        self.delete_marker(joint_idx)
+                    else:
+                        print("joint index is None")
+
+        else:
+            event.ignore()
 
 
 # # utils
@@ -660,7 +591,6 @@ class SceneViewer(QGraphicsView):
 
 
 # NOTE: meet some error when using the auto triangle, check if the error comes from here
-# 
 class Connection(QGraphicsLineItem):        # the line is not necessarily combined with the points, you do not return, so the 
     def __init__(self, start_point, end_point, color):          # , shift=5
         super().__init__()
@@ -678,6 +608,7 @@ class Connection(QGraphicsLineItem):        # the line is not necessarily combin
         start_pos = self.start_point.scenePos()
         end_pos = self.end_point.scenePos()
         self.setLine(QLineF(start_pos, end_pos))
+        self.setZValue(1)         # the z-value of the line is 1
         # print(f"update line: {start_pos.x()}, {start_pos.y()} to {end_pos.x()}, {end_pos.y()}")
 
 

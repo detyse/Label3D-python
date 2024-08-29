@@ -1,14 +1,7 @@
-# the main ui here
-# TODO: design an entry for the quality check of the labeled data, 
-# the qc mode could be close
-# change the video load process in the main window part
-# will generate the numpy file for labeling
-# this class will use the frame index to generate a frame npy file, and load the npy file for label
-# 
-
 import os
 import sys
 import time
+import datetime
 
 import numpy as np
 import pandas as pd
@@ -21,28 +14,33 @@ from PySide6.QtWidgets import *
 from utils.utils import read_json_skeleton, LoadYaml
 from animator.animator import Animator, VideoAnimator
 
+
 # TODO: if the qc mode is no check the quality of the labeled data, the qc mode could be closed
+# TODO: add the preview mode
 # is a GUI for manual labeling of 3D keypoints in multiple cameras.
 class Label3D(Animator):
     # signal
     update_status = Signal(str)
 
-    def __init__(self, camParams=None, video_folder=None, skeleton=None, frame_num2label=None, save_path=None, qc_mode=False) -> None:      # the qc_mode could be defined in the yaml file
+    def __init__(self, camParams=None, video_folder=None, skeleton=None, frame_num2label=None, save_path=None, frame_indexes=None, qc_mode=False) -> None:      # the qc_mode could be defined in the yaml file
         super().__init__()  
         # assert
         self.camParams = camParams          # the camera parameters
         self.video_folder = video_folder        # return a list of video_path for each view
-        self.views_video = self.get_views_video()        # the video path for each view, the video_folder
+        # now the property is meaningless
         
         # will be a just a folder
-
         self.skeleton = read_json_skeleton(skeleton)
         self.label_num = frame_num2label
 
         self.save_path = save_path
 
+        self.views_video = self.get_views_video()        # the video path for each view, the video_folder    
+        
         assert len(self.camParams) == len(self.views_video)
         self.view_num = len(self.camParams)
+
+        self.frame_indexes = frame_indexes      # 
 
         self.qc_mode = qc_mode
         # self.duplication_index = frame_index        # to get the duplication frames position
@@ -52,15 +50,20 @@ class Label3D(Animator):
         self._init_properties()
         self._initGUI()
         self._load_labels()
-
-    
+        
+    # 
     def get_views_video(self, ):
-        video_folder = self.video_folder       # the folder path
-        view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
+        # just read the frames in the output folder
+        video_folder = self.save_path
+        frames_path = os.path.join(video_folder, "frames")
+        
+        view_folders = [f for f in os.listdir(frames_path) if os.path.isdir(os.path.join(frames_path, f))]
         view_folders.sort()
 
         # join the path
-        views = [os.path.join(video_folder, f) for f in view_folders]
+        views = [os.path.join(frames_path, f) for f in view_folders]
+
+        # print("get_views: " ,views) 
         return views
 
 
@@ -78,7 +81,7 @@ class Label3D(Animator):
             K.append(cam["K"][0][0].T)
             RDist.append(cam["RDistort"][0][0])
             TDist.append(cam["TDistort"][0][0])
-
+        
         self.r = np.array(r)
         self.t = np.array(t)
         self.K = np.array(K)
@@ -102,7 +105,7 @@ class Label3D(Animator):
 
         self.current_joint = None
         self.current_joint_idx = None
-
+        
         self.joints3d = np.full((self.nFrames, len(self._joint_names), 3), np.nan)          # NOTE: data to be saved
         
         # for Jiehan: add the original label points saving (not reprojected points) # quit large
@@ -112,18 +115,26 @@ class Label3D(Animator):
         if os.path.exists(os.path.join(self.save_path, "joints3d.npy")):
             print("Loading existing labels")
             self.joints3d = np.load(os.path.join(self.save_path, "joints3d.npy"))
-            
+        
         if os.path.exists(os.path.join(self.save_path, "labeled_points.npy")):
             print("Loading existing original labels")
             self.labeled_points = np.load(os.path.join(self.save_path, "labeled_points.npy"))
 
         # for qc mode, and check the parameters are given or not
-        if self.qc_mode:
+        # the qc mode should follow the config file
+        if self.qc_mode:            
             self._tolerant_error = self.skeleton["tolerant_error"]
-            self.qc_frames = []                   # should be a list to store the low quality frames
+            self.qc_frames = []             # should be a list to store the low quality frames
+            self.qc_passed = []               
             # get the frame index from the video folder
-            self.duplication_index = np.load(os.path.join(self.video_folder, "indexes.npy"))
+            self.duplication_index = np.load(os.path.join(self.save_path, "indexes.npy"))
             # TODO: check the duplication index only duplicate once
+
+        # add the contrastive change for all frames
+        self.contrast_factor = 1.0
+
+        # set the preview mode
+        self.preview_mode = False
 
 
     def _initGUI(self, ):
@@ -136,7 +147,12 @@ class Label3D(Animator):
         left_layout = QVBoxLayout()
         main_layout = QHBoxLayout()
         frame_info_layout = QHBoxLayout()
+        # frame_info_layout.setAlignment(Qt.AlignLeft)
         outer_layout = QVBoxLayout()
+
+        # frame label bar
+        self.frame_banner = QLabel(f"Current Frame: ", self)
+        outer_layout.addWidget(self.frame_banner)
 
         self.joint_button = {}
 
@@ -150,7 +166,6 @@ class Label3D(Animator):
         side_bar.setLayout(left_layout)
         main_layout.addWidget(side_bar)
 
-        # TODO: shrink the margin of the video_widget
         views_layout = QGridLayout()
         # set the space between widgets
         views_layout.setHorizontalSpacing(0)
@@ -163,8 +178,6 @@ class Label3D(Animator):
 
         video_widget.setLayout(views_layout)
 
-        # TODO: check the function of new buttons
-        # next_frame_button = QPushButton("Next Frame", self)
         next_frame_button = QToolButton(self)
         next_frame_button.setArrowType(Qt.RightArrow)
         next_frame_button.clicked.connect(lambda: self.frame_jump(True))
@@ -176,13 +189,32 @@ class Label3D(Animator):
         frame_info_layout.addWidget(last_frame_button)
         frame_info_layout.addWidget(self.frame_info)
         frame_info_layout.addWidget(next_frame_button)
+        
         self.jump_to = QLineEdit(self)
+        # limit the max length of the input
+        self.jump_to.setMaxLength(5)        # limit the character length
+        self.jump_to.setValidator(QIntValidator(0, self.nFrames - 1, self))        # limit the input range
+        self.jump_to.setMaximumWidth(100)
         self.jump_to.setPlaceholderText("Jump to frame")
         self.jump_to.returnPressed.connect(lambda: self.jump_to_frame(int(self.jump_to.text()) - 1))
         frame_info_layout.addWidget(self.jump_to)
 
         self.jump_rate = QLabel(f"Jump Rate: {self.frameRate}", self)
         frame_info_layout.addWidget(self.jump_rate)
+
+        frame_info_layout.addStretch()        # add a stretch to the right 
+
+        # TODO: add the preview button for preview mode change
+        self.preview_button = QPushButton("Preview Mode", self)
+        self.preview_button.clicked.connect(self.preview_mode_change)
+        frame_info_layout.addWidget(self.preview_button)
+
+        # TODO: add the qc button on the frame info layout
+        self.qc_button = QPushButton("Quality Check", self)
+        if not self.qc_mode:
+            self.qc_button.setEnabled(False)
+        self.qc_button.clicked.connect(self.run_quality_check)
+        frame_info_layout.addWidget(self.qc_button)
 
         main_layout.addWidget(video_widget)
 
@@ -209,20 +241,22 @@ class Label3D(Animator):
         nRows = int(np.ceil(np.sqrt(nViews)))
         nCols = int(np.ceil(nViews / nRows))
 
+        if nRows > nCols:
+            nRows = nCols
+
         pos = np.zeros((nViews, 2))
         for i in range(nViews):
             row = i % nRows
             col = i // nRows
             pos[i, :] = [row, col]
-        
         return pos
-
 
     # 
     def _load_labels(self, ):
         # load the self.joints3d to animators
         self.reproject_for_load()
         self.update_radio_background()
+        self.update_frame()
 
 
     def frame_align_with_animators(self, ):
@@ -236,6 +270,15 @@ class Label3D(Animator):
         # set label3d frame property
         self.frame = self.video_animators[0].frame
         self.nFrames = self.video_animators[0].nFrames
+
+        # align the frame index
+        # NOTE: the index of qc should be a shuffled list, so the len of index should be the nFrames
+        # if self.qc_mode:
+        #     assert self.nFrames == 2 * len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
+        # else:
+        #     assert self.nFrames == len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
+        assert self.nFrames == len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
+
         self.frameInd = np.arange(self.nFrames)
 
 
@@ -265,6 +308,8 @@ class Label3D(Animator):
 
 
     def frame_jump(self, forward=True):
+        print("frame jump is called")
+
         current_frame = self.frame
         if forward:
             if self.frame < self.nFrames - 1:
@@ -284,12 +329,15 @@ class Label3D(Animator):
                 # all the joints are labeled, update frame directly
                 self.update_frame()
                 return
-            else:
+            elif not self.preview_mode:
                 if self.warning_for_framechange():
                     self.update_frame()
                 else: 
                     self.frame = current_frame
                     return
+            else:
+                self.update_frame()
+                return
         else:
             # do nothing
             return
@@ -310,17 +358,21 @@ class Label3D(Animator):
                 # all the joints are labeled, update frame directly
                 self.update_frame()
                 return
-            else:
+            elif not self.preview_mode:
                 if self.warning_for_framechange():
                     self.update_frame()
                 else: 
                     self.frame = current_frame
                     return
+            else:
+                self.update_frame()
+                return
         else:
             # do nothing
             return
 
 
+    # do not needed now
     def update_frameRate(self, forward=True):       # keep the value be int
         if forward:
             if self.frameRate < self.nFrames:
@@ -335,6 +387,31 @@ class Label3D(Animator):
             else: self.frameRate = 1
         self.jump_rate.setText(f"Jump Rate: {self.frameRate}")
 
+
+    # NOTE: when the preview mode is on, unable the key press event and unable the side bar buttons
+    # change the joint into none, and unable the joint change
+    def preview_mode_change(self, ):
+        print(f"Preview mode change called, current mode: {self.preview_mode}")
+        self.preview_mode = not self.preview_mode
+        
+        if self.preview_mode:
+            # change the animator to the preview mode
+            for animator in self.video_animators:
+                animator.preview_mode = True
+            # unable the joint buttons
+            for button in self.joint_button.values():
+                button.setEnabled(False)
+            self.preview_button.setText("Change to Label Mode")
+
+        else:
+            for animator in self.video_animators:
+                animator.preview_mode = False
+            #  enable the joint buttons
+            for button in self.joint_button.values():
+                button.setEnabled(True)
+            self.preview_button.setText("Change to Preview Mode")
+        return 
+    
 
     def keyPressEvent(self, event):
         # next frame, temporarily use the key F, will use the arrow Right key later
@@ -371,7 +448,7 @@ class Label3D(Animator):
             # self.jump_rate.setText(f"Jump Rate: {self.frameRate}")
             self.update_frameRate(False)
 
-        elif event.key() == Qt.Key_Q:
+        elif event.key() == Qt.Key_Q and not self.preview_mode:
             print("Q is pressed")
             if self.current_joint_idx is None:
                 self.update_joint(0)
@@ -381,7 +458,7 @@ class Label3D(Animator):
                 self.update_joint(len(self._joint_names) - 1)
 
         # switch joint
-        elif event.key() == Qt.Key_E:
+        elif event.key() == Qt.Key_E and not self.preview_mode:
             print("E is pressed")
             if self.current_joint_idx is None:
                 self.update_joint(0)
@@ -394,7 +471,7 @@ class Label3D(Animator):
         # BUG: the bug is, delete some point and redraw them with a "T" will cause the point disappear
         # triangulate the 3D joint
         # TODO: check the function
-        elif event.key() == Qt.Key_T:
+        elif event.key() == Qt.Key_T and not self.preview_mode:
             print("T is pressed")
             # FIXME: when there are only one view is labeled, the reprojection will case the marker disappear
             if self.triangulate_all_joints():
@@ -402,34 +479,56 @@ class Label3D(Animator):
                 # reproject the 3D joint to the views
                 self.reproject_for_load()
                 self.update_radio_background()
+                self.update_joint(self.current_joint_idx)
 
 
-        elif event.key() == Qt.Key_S:
+        elif event.key() == Qt.Key_S and not self.preview_mode:
             print("S is pressed")
             self.save_labels()
 
 
-        elif event.key() == Qt.Key_R and QApplication.keyboardModifiers() == Qt.ControlModifier:
+        elif event.key() == Qt.Key_R and QApplication.keyboardModifiers() == Qt.ControlModifier and not self.qc_mode:
             print("Ctrl+R is pressed")
             # clear the current joint
             self.clear_current_joint()
+            self.update_radio_background()
 
 
         # define the quality check shortcut
-        elif event.key() == Qt.Key_C and self.qc_mode:
+        elif event.key() == Qt.Key_C and not self.preview_mode:
             print("C is pressed")
             self.run_quality_check()
 
 
+        if event.key() == Qt.Key_BracketLeft:
+            print("key press event (animator): bracket left")
+            self.contrast_factor -= 0.1
+            if self.contrast_factor < 0.1:
+                self.contrast_factor = 0.1
+            self.contrastive_change()        # hope not need to use the update_frame method
+        elif event.key() == Qt.Key_BracketRight:
+            print("key press event (animator): bracket right")
+            self.contrast_factor += 0.1
+            if self.contrast_factor > 5.0:
+                self.contrast_factor = 5.0
+            self.contrastive_change()
+
         else:
             super().keyPressEvent(event)
+
+
+
+    def contrastive_change(self, ):
+        # change the contrast for all frames
+        for i, animator in enumerate(self.video_animators):
+            animator.contrast_change(self.contrast_factor)
+        return 
 
 
     ## update the current joint, called by button and key press
     ## could update the button?
     def update_joint(self, input=None):
         # print("Update joint: Label3d - update_joint is called")
-
         if input is None:       # init the joint state
             self.current_joint = None
             self.current_joint_idx = None
@@ -454,12 +553,16 @@ class Label3D(Animator):
 
         for animator in self.video_animators:
             animator.set_joint(self.current_joint_idx)
+            # could highlight the current joint in this function and 
 
         self.update_radio_checked()
 
 
     # update the frame to control the animator frame change
     def update_frame(self, ):
+        # update the frame index
+        self.frame_banner.setText(f"Current Frame: {np.load(self.frame_indexes)[self.frame]}")
+
         self.frame_info.setText(f"Frame: {self.frame + 1} / {self.nFrames}")
 
         for i, animator in enumerate(self.video_animators):
@@ -469,8 +572,10 @@ class Label3D(Animator):
 
         self.update_radio_background()
         self.update_radio_checked()
-        self.save_labels()
+        # TODO: will the enable state change?
 
+        self.save_labels()
+        
 
     # turn the current joint data into nan
     # TODO: this method would induce a bug, check where the bug could be
@@ -573,7 +678,6 @@ class Label3D(Animator):
         print("Data saved!")
         return True
 
-
     def closeEvent(self, event):
         for i, animator in enumerate(self.video_animators):
             self.labeled_points[i, self.frame] = np.array(animator.get_all_original_marker_2d())
@@ -604,17 +708,29 @@ class Label3D(Animator):
     # 2. load the addtional information for the qc: the tolerant error for each joint, load from skeleton file (the error is the pixel error). the duplication index for the shuffled frames, could laod from an additional file
     # 3. a new label3d window(could jump to these frames) for the not good frames(or just give the index to the user), the not good frames are the frames that the error is larger than the tolerant error
     # 4. recheck the not good frames, and save the new labels if qc passed
+
+    # TODO: add the popup message box for the qc frames, and save an excel file to show the qc frames
+    # write the qc information into the excel file
     def run_quality_check(self, ):
         # get the data from te 
         duplicated_frames = []      # is a list of pairs of the frames index, the duplicated frames will be together
         # 
-
         frame_index_collection = sorted(list(set(self.duplication_index)))
         for index in frame_index_collection:
             # get the position pair of the duplicated frames (index1, index2)
             position_pair = [j for j, x in enumerate(self.duplication_index) if x == index]
             duplicated_frames.append(position_pair)
         
+        # excel file
+        qc_df = pd.DataFrame()
+        # build the joint col, self._joint_name
+        joint_col = []
+        for joint in self._joint_names:
+            joint_col.append(joint)
+
+        # write the joint col into the df
+        qc_df['joints/frames'] = joint_col
+
         # remove the repeated elements in the list
         list_of_tuples = [tuple(i) for i in duplicated_frames]
         duplicated_frames = list(set(list_of_tuples))
@@ -623,34 +739,54 @@ class Label3D(Animator):
         for frame_pair in duplicated_frames:            # list of list
             frame_one = self.joints3d[frame_pair[0]]        # shape: (joint_num, 3)
             frame_two = self.joints3d[frame_pair[1]]
+
+            # if there are nan in the labeled points, skip the frame
+            if np.isnan(frame_one).any() or np.isnan(frame_two).any():
+                continue
+
             # calculate the error for each joint
             error = np.sqrt(np.sum((frame_one - frame_two) ** 2, axis=1))
-
-            # print(f"error shape {error.shape} and error: {error}")
-
+            
+            frame_qc_col = []
             # check the error for each joint
+            qc_pass = True
             for i, joint_error in enumerate(error):
                 if joint_error > self._tolerant_error[i]:
+                    frame_qc_col.append("Fail")
                     self.qc_frames.append(frame_pair)
-                    break
+                    qc_pass = False
+                else:
+                    frame_qc_col.append("Pass")
+
+            qc_df[f"{frame_pair[0]}_{frame_pair[1]}"] = frame_qc_col
+
+            if qc_pass:
+                self.qc_passed.append(frame_pair)
+
+        if not qc_pass:
+            # write the df into the csv file, get current time as the file name
+            current_time = datetime.now().strftime("%Y-%m-%d_%H-%M")
+            qc_file_name = f"qc_{current_time}.csv"
+            qc_df.to_csv(os.path.join(self.save_path, qc_file_name), index=False)
 
         # if there is no qc frames, jump a message box
         if len(self.qc_frames) == 0:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Information)
-            msg.setText("All the frames are labeled correctly")
+            msg.setText("There is no frame need to be checked")
             msg.setWindowTitle("Quality Check")
             msg.setStandardButtons(QMessageBox.Ok)
             msg.setDefaultButton(QMessageBox.Ok)
             button = msg.exec()
             return
 
-        # if there are qc frames, jump a new label3d window for the qc frames
+        # if there are qc frames, jump a new label3d window for the qc frames, -> save the joint different into a excel file in the output folder
+        # TODO: the message box should now be closed
         else: 
             # jump a message box to show the qc frames
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Warning)
-            msg.setText("There are frames that need to be checked, click OK to continue")
+            msg.setText("There are frames that need to be checked showing at the bottom, \nclick OK to continue")
             msg.setWindowTitle("Quality Check")
             msg.setStandardButtons(QMessageBox.Ok)
             msg.setDefaultButton(QMessageBox.Ok)
@@ -658,6 +794,12 @@ class Label3D(Animator):
 
             # update the frames info into the main window status bar
             self.update_status.emit(f"Quality Check: frame {self.qc_frames} need to be checked")
+
+
+
+        # save the qc pass indexes
+        save_path = os.join(self.save_path, "qc_passed.npy")
+        np.save(save_path, self.qc_passed)
 
         return True
 
@@ -696,7 +838,6 @@ class Label3D(Animator):
         
         # print("the 3D joint position: ", point_3d)
         return True
-
 
 ############################################################################################################
 # utils
