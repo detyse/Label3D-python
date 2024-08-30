@@ -62,7 +62,7 @@ class ConfigWidget(QWidget):
     def initUI(self):
         # Create a grid layout
         layout = QGridLayout()
-    
+
         # video folder path
         self.video_path_label = QLabel("Video Folder: ")
         self.video_path = QLineEdit()
@@ -89,7 +89,7 @@ class ConfigWidget(QWidget):
         layout.addWidget(self.skeleton_path_label, 2, 0)  # row 2, column 0
         layout.addWidget(self.skeleton_path, 2, 1)        # row 2, column 1
         layout.addWidget(self.skeleton_path_browse, 2, 2) # row 2, column 2
-
+        
         # set the frame_num2label param
         self.frame_num2label_label = QLabel("Frame Number to Label: ")
         self.frame_num2label = QLineEdit()
@@ -230,7 +230,6 @@ class ConfigWidget(QWidget):
                     yaml.dump(config, f)
                 
                 self.yaml_path = yaml_path
-                
                 # load the config file
                 self.load_config_thread()
         
@@ -238,6 +237,7 @@ class ConfigWidget(QWidget):
             self.load_button.setEnabled(True)
             self.loading_indicator.setText("Error: " + str(e) + " === Please check the config file.")
             raise e
+    
     # 
     # def load_config(self, ):
     #     yaml_path = self.yaml_path

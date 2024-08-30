@@ -2,6 +2,7 @@
 # NOTE: the data stored in the item is immutable, so the data should reset after changing the stored data
 
 # NOTE: set the z-value for each item, the z-value of pix set to 0, lines for 1, points for 2
+# TODO and FIXME: change the frame update method, do not load into memory at the first time
 
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QWheelEvent
 import cv2
@@ -51,10 +52,12 @@ class VideoAnimator(Animator):
         # load properties from input
         # self.video_paths = video_paths      # a list of video path
         # self.video_frames = self.load_videos(self.video_paths, label_num)
+        
         self.video_frames = self.load_videos(video_paths, label_num)
+        # the video frames property should be a path of the file, 
 
         # update properties inherited from animator
-        self.nFrames = len(self.video_frames)
+        self.nFrames = len(np.load(self.video_frames, mmap_mode='r'))        # the total number of frames
         self.frame = 0      # the index start from 0
         # other properties as default  # self.frameRate = 1
         
@@ -104,48 +107,51 @@ class VideoAnimator(Animator):
         # if there is npy file, load the npy file
         for file in file_list:
             if file == "frames.npy":
-                frames = np.load(os.path.join(video_folder, file))
-                return frames
+                return os.path.join(video_folder, file)
+
+                # frames = np.load(os.path.join(video_folder, file))
+                # return frames
         
-        # i think we are not using this right now, all the video will be saved as npy file
-        # because we want to solve the GUI block problem
-        # if there is no npy file, load the video file
-        # the no use
-        for file in file_list:
-            if file == "0.mp4" or file == "0.avi":
-                frame_num_list = []
-                frame_index_list = []
-                frames = []
 
-                video_file = os.path.join(video_folder, file)
+        # # i think we are not using this right now, all the video will be saved as npy file
+        # # because we want to solve the GUI block problem
+        # # if there is no npy file, load the video file
+        # # the no use
+        # for file in file_list:
+        #     if file == "0.mp4" or file == "0.avi":
+        #         frame_num_list = []
+        #         frame_index_list = []
+        #         frames = []
 
-                # 
-                cap = cv2.VideoCapture(video_file)
-                frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                frame_num_list.append(frame_num)
+        #         video_file = os.path.join(video_folder, file)
+
+        #         # 
+        #         cap = cv2.VideoCapture(video_file)
+        #         frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        #         frame_num_list.append(frame_num)
                 
-                if label_num == 0 or label_num > frame_num:
-                    label_num = frame_num
+        #         if label_num == 0 or label_num > frame_num:
+        #             label_num = frame_num
 
-                indexes = np.linspace(0, frame_num-1, label_num, dtype=int)
-                frame_index_list.append(indexes)
+        #         indexes = np.linspace(0, frame_num-1, label_num, dtype=int)
+        #         frame_index_list.append(indexes)
 
-                # if the frame number is index, then get the frame
-                for index in indexes:
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, index)
+        #         # if the frame number is index, then get the frame
+        #         for index in indexes:
+        #             cap.set(cv2.CAP_PROP_POS_FRAMES, index)
 
-                    ret = cap.grab()
-                    if not ret:
-                        break
-                    ret, frame = cap.retrieve()
-                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)      # 
+        #             ret = cap.grab()
+        #             if not ret:
+        #                 break
+        #             ret, frame = cap.retrieve()
+        #             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)      # 
                     
-                    frames.append(rgb_frame)
+        #             frames.append(rgb_frame)
 
-                cap.release()
+        #         cap.release()
 
-                frames = np.array(frames)
-                return frames
+        #         frames = np.array(frames)
+        #         return frames
             
         # error situation
         raise ValueError("No video file could load!")
@@ -218,7 +224,7 @@ class VideoAnimator(Animator):
         return self.original_markers[self.frame]
 
 
-    # FIXME: load the joint3d and hand labeled data
+    # TODO: change the frame update method, do not load into memory at the first time
     def update_frame(self, frame_ind=None):       # this function should be use after the frame change, also used to init the scene        
         # frame_ind: the index of video frames, 
         # update frame and using self.frame as current frame
@@ -237,7 +243,9 @@ class VideoAnimator(Animator):
         self.f_exist_markers = []
         self.f_joints2markers = {}
         
-        current_frame = self.video_frames[self.frame]
+        # current_frame = self.video_frames[self.frame]
+        current_frame = np.load(self.video_frames, mmap_mode='r')[self.frame]   # NOTE: could be time consuming
+
         height, width, channels = current_frame.shape       # the frame shape would change
         # print(f"frame shape: {height}, {width}, {channels}")
         bytesPerLine = channels * width

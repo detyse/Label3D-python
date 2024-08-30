@@ -14,9 +14,12 @@ from PySide6.QtWidgets import *
 from utils.utils import read_json_skeleton, LoadYaml
 from animator.animator import Animator, VideoAnimator
 
+# use track to track the crush bug
+import traceback
 
 # TODO: if the qc mode is no check the quality of the labeled data, the qc mode could be closed
-# TODO: add the preview mode
+# TODO: fix the crash bug
+# FIXME: the crush problem could induce by memory 
 # is a GUI for manual labeling of 3D keypoints in multiple cameras.
 class Label3D(Animator):
     # signal
@@ -51,6 +54,7 @@ class Label3D(Animator):
         self._initGUI()
         self._load_labels()
         
+
     # 
     def get_views_video(self, ):
         # just read the frames in the output folder
@@ -76,10 +80,26 @@ class Label3D(Animator):
 
         # TODO: confirm the camParams format and order
         for cam in self.camParams:          # keep order? 
-            r.append(cam["r"][0][0].T)
+            r.append(cam["r"][0][0].T)      # 
+            # r.append(cam["r"][0][0])           # temp change
+            
+            # get the translation vector
+            # trans_vector = cam["t"][0][0]
+            # trans_vector = trans_vector[::-1]
+            # # reverse the vector
+            # t.append(trans_vector)
             t.append(cam["t"][0][0])
-            K.append(cam["K"][0][0].T)
+
+            K.append(cam["K"][0][0].T)        # temp change
+
+            # rdistort = cam["RDistort"][0][0]
+            # rdistort = rdistort[::-1]
+            # RDist.append(rdistort)
             RDist.append(cam["RDistort"][0][0])
+            
+            # tdistort = cam["TDistort"][0][0]
+            # tdistort = tdistort[::-1]
+            # TDist.append(tdistort
             TDist.append(cam["TDistort"][0][0])
         
         self.r = np.array(r)
@@ -579,19 +599,25 @@ class Label3D(Animator):
 
     # turn the current joint data into nan
     # TODO: this method would induce a bug, check where the bug could be
+    # FIXME: this function may cause crush, using try catch to capture the crush bug
     def clear_current_joint(self, ):
-        if self.current_joint is None:
-            print("Please select a joint first")
-            return False
+        try:
+            if self.current_joint is None:
+                print("Please select a joint first")
+                return False
+            
+            self.joints3d[self.frame, self.current_joint_idx, ...] = np.nan
+            self.labeled_points[:, self.frame, self.current_joint_idx] = np.nan
+
+            # update the frames_markers of each frame
+            for i, animator in enumerate(self.video_animators):
+                animator.clear_marker_2d()          # do not need here to sync the frame and the joint
+
+            self.update_frame()
+        except Exception as e:
+            print("Clear current joint got an error:: ", e)
+            traceback.print_exc()
         
-        self.joints3d[self.frame, self.current_joint_idx, ...] = np.nan
-        self.labeled_points[:, self.frame, self.current_joint_idx] = np.nan
-
-        # update the frames_markers of each frame
-        for i, animator in enumerate(self.video_animators):
-            animator.clear_marker_2d()          # do not need here to sync the frame and the joint
-
-        self.update_frame()
         return True
 
 
