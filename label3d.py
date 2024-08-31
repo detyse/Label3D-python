@@ -628,7 +628,7 @@ class Label3D(Animator):
             # do not update joint just update the joints3d
             frame_view_markers = np.full((self.view_num, 2), np.nan)
             for j, animator in enumerate(self.video_animators):         # get the joint position in each view
-                print(f"joint: {self._joint_names[i]} in view: {j}, return the marker {animator.get_marker_2d(self.frame, i)}")
+                # print(f"joint: {self._joint_names[i]} in view: {j}, return the marker {animator.get_marker_2d(self.frame, i)}")
                 frame_view_markers[j] = animator.get_marker_2d(self.frame, i)       # FIXME: bug here
                 
             # get the how many views have the joint

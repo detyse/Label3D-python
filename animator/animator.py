@@ -10,6 +10,7 @@ from PySide6.QtGui import QEnterEvent, QMouseEvent, QWheelEvent
 import cv2
 import numpy as np
 import os
+import traceback
 
 from PySide6.QtWidgets import *
 from PySide6.QtCore import *
@@ -77,7 +78,7 @@ class VideoAnimator(Animator):
         self.f_exist_markers = []           # a list of joints idx indicating the joints on this frame       
         self.f_joints2markers = {}            # a dict map the joint name to the marker on this frame
         # will these change after reprojection? if not we could update the frame after the reprojection
-
+        
         # 
         self.frames_markers = np.full((self.nFrames, len(self._joint_names), 2), np.nan)
         self.original_markers = np.full((self.nFrames, len(self._joint_names), 2), np.nan)
@@ -181,14 +182,19 @@ class VideoAnimator(Animator):
 
 
     def clear_marker_2d(self, ):        # clear the current joint marker
-        if self.f_current_joint_idx is None:
-            return
-        
-        # full the marker with nan
-        # self.frames_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
-        self.frames_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
-        self.original_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
-        self.delete_marker()
+        try:
+            if self.f_current_joint_idx is None:
+                return
+            
+            # full the marker with nan
+            # self.frames_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
+            self.frames_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
+            self.original_markers[self.frame, self.f_current_joint_idx, ...] = np.nan
+            self.delete_marker()
+        except Exception as e:
+            print(f"clear marker 2d error: {e}")
+            # trace back the error
+            traceback.print_exc()
 
 
     ## only called by label3d, to sync rt
@@ -353,7 +359,8 @@ class VideoAnimator(Animator):
             self.scene.update()
         return
 
-
+    
+    # NOTE: temp change to show the self.f_current_joint_idx
     # rewrite the functions
     def plot_marker_and_lines(self, pos, joint_idx=None, reprojection=False):
         # print("animator - plot_marker_and_lines called")
@@ -368,6 +375,8 @@ class VideoAnimator(Animator):
             self.reset_marker(self.f_joints2markers[joint_idx], pos, reprojection)
             # print("animator - plot_marker_and_lines called -- reset marker")
             self.scene.update()
+
+            print(f"show the joint: {self.f_joints2markers}")
             return
         
         else:
@@ -399,7 +408,9 @@ class VideoAnimator(Animator):
                     if other_marker:
                         self.update_or_create_connection(marker, other_marker, self._color[index])
 
-        self.scene.update()
+            self.scene.update()
+            print(f"show the joint: {self.f_joints2markers}")
+            return
 
 
     # called in label3d or animator
@@ -450,28 +461,37 @@ class VideoAnimator(Animator):
 
     # 
     def delete_marker(self, joint_idx=None):
-        print("delete marker called")
-        joint_idx = joint_idx or self.f_current_joint_idx
-        if joint_idx is None:
-            return
-        
-        marker = self.f_joints2markers.pop(joint_idx, None)
-        # pop the marker from the f_
-        if marker:
-            for connection in list(marker.data(self.d_lines)):
-                other_marker = connection.theOtherPoint(marker)
-                other_connections = other_marker.data(self.d_lines)
-                other_connections.remove(connection)
-                other_marker.setData(self.d_lines, other_connections)
-                # print(other_marker.data(self.d_lines))
-                self.scene.removeItem(connection)
+        try:
+            if joint_idx != 0:
+                joint_idx = joint_idx or self.f_current_joint_idx
 
-            self.scene.removeItem(marker)
-            self.frames_markers[self.frame, joint_idx] = np.nan
-            if joint_idx in self.f_exist_markers:
-                self.f_exist_markers.remove(joint_idx)
+            if joint_idx is None:
+                return
             
-            self.scene.update()
+            marker = self.f_joints2markers.pop(joint_idx, None)
+            # pop the marker from the f_
+            if marker:
+                # print some information of the marker
+                print(f"detect marker: {self._joint_names[marker.data(self.d_joint_index)]}")
+
+                for connection in list(marker.data(self.d_lines)):
+                    other_marker = connection.theOtherPoint(marker)
+                    other_connections = other_marker.data(self.d_lines)
+                    other_connections.remove(connection)
+                    other_marker.setData(self.d_lines, other_connections)
+                    # print(other_marker.data(self.d_lines))
+                    self.scene.removeItem(connection)
+
+                self.scene.removeItem(marker)
+                self.frames_markers[self.frame, joint_idx] = np.nan
+                if joint_idx in self.f_exist_markers:
+                    self.f_exist_markers.remove(joint_idx)
+                
+                self.scene.update()
+                
+        except Exception as e:
+            print(f"delete marker error: {e}")
+            traceback.print_exc()
     
 
     # ## NOTE: contrast change for single frame 
