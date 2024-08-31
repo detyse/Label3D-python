@@ -3,6 +3,8 @@
 
 # NOTE: set the z-value for each item, the z-value of pix set to 0, lines for 1, points for 2
 # TODO and FIXME: change the frame update method, do not load into memory at the first time
+# comment: change the frame load method could not solve the problem
+# break down the 
 
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QWheelEvent
 import cv2
@@ -606,7 +608,7 @@ class Connection(QGraphicsLineItem):        # the line is not necessarily combin
         self.start_point = start_point
         self.end_point = end_point
         self.updateLine()
-
+        
         the_color = QColor(color2QColor(color))
         self.setPen(QPen(the_color, 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
 
