@@ -171,6 +171,7 @@ class ConfigWidget(QWidget):
         # else:
             # line_edit.setText('Directory not available')
 
+
     # write the selected config into yaml file for reference and load
     # connect to the load button
     # TODO: change the message box indicator to the QLabel indicator
@@ -238,22 +239,6 @@ class ConfigWidget(QWidget):
             self.loading_indicator.setText("Error: " + str(e) + " === Please check the config file.")
             raise e
     
-    # 
-    # def load_config(self, ):
-    #     yaml_path = self.yaml_path
-    #     if yaml_path:
-    #         loader = LoadYaml(yaml_path)
-    #         params = loader.get_all_params()
-    #         if params:
-    #             self.loading_indicator.setText("Loading...")
-    #             self.loading_indicator.repaint()
-    #             # self.parent().startMainWindow(params)     # here is the loading function
-    #             self.close()
-    #         else:
-    #             QMessageBox.warning(self, "Load Error", "Failed to load configuration.", QMessageBox.OK)
-    #     else:
-    #         QMessageBox.warning(self, "Error", "The config file is not valid.", QMessageBox.Ok)
-    
 
     # a new load config running in another thread that would not block the main thread
     def load_config_thread(self, ):
@@ -303,7 +288,7 @@ class MainApplication(QApplication):
         self.mainWindow = MainWindow(params)
         self.mainWindow.show()
 
-
+    
 # the worker for config load
 # NOTE: if not qc mode, the frame is loaded in the animator class, will may still block the main thread
 class LoadConfigWorker(QObject):
