@@ -360,7 +360,6 @@ class VideoAnimator(Animator):
         return
 
     
-    # NOTE: temp change to show the self.f_current_joint_idx
     # rewrite the functions
     def plot_marker_and_lines(self, pos, joint_idx=None, reprojection=False):
         # print("animator - plot_marker_and_lines called")
@@ -375,8 +374,6 @@ class VideoAnimator(Animator):
             self.reset_marker(self.f_joints2markers[joint_idx], pos, reprojection)
             # print("animator - plot_marker_and_lines called -- reset marker")
             self.scene.update()
-
-            print(f"show the joint: {self.f_joints2markers}")
             return
         
         else:
@@ -409,7 +406,6 @@ class VideoAnimator(Animator):
                         self.update_or_create_connection(marker, other_marker, self._color[index])
 
             self.scene.update()
-            print(f"show the joint: {self.f_joints2markers}")
             return
 
 
