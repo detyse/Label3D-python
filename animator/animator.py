@@ -455,7 +455,7 @@ class VideoAnimator(Animator):
             connection.updateLine()
     
 
-    # 
+    # the data is not cleared in this function
     def delete_marker(self, joint_idx=None):
         try:
             if joint_idx != 0:
@@ -489,27 +489,6 @@ class VideoAnimator(Animator):
             print(f"delete marker error: {e}")
             traceback.print_exc()
     
-
-    # ## NOTE: contrast change for single frame 
-    # def keyPressEvent(self, event):
-    #     # ignore all the key press event, leave it to the parent widget
-    #     # except sevel key press event
-    #     # only for contrast adjust other events will be ignored
-    #     if event.key() == Qt.Key_BracketLeft:
-    #         print("key press event (animator): bracket left")
-    #         self.contrast_factor -= 0.1
-    #         if self.contrast_factor < 0.1:
-    #             self.contrast_factor = 0.1
-    #         self.change_frame_contract()        # hope not need to use the update_frame method
-    #     elif event.key() == Qt.Key_BracketRight:
-    #         print("key press event (animator): bracket right")
-    #         self.contrast_factor += 0.1
-    #         if self.contrast_factor > 5.0:
-    #             self.contrast_factor = 5.0
-    #         self.change_frame_contract()
-    #     else:
-    #         event.ignore()
-
 
     def keyPressEvent(self, event):
         event.ignore()
