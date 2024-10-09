@@ -62,7 +62,7 @@ class ConfigWidget(QWidget):
     def initUI(self):
         # Create a grid layout
         layout = QGridLayout()
-    
+
         # video folder path
         self.video_path_label = QLabel("Video Folder: ")
         self.video_path = QLineEdit()
@@ -89,7 +89,7 @@ class ConfigWidget(QWidget):
         layout.addWidget(self.skeleton_path_label, 2, 0)  # row 2, column 0
         layout.addWidget(self.skeleton_path, 2, 1)        # row 2, column 1
         layout.addWidget(self.skeleton_path_browse, 2, 2) # row 2, column 2
-
+        
         # set the frame_num2label param
         self.frame_num2label_label = QLabel("Frame Number to Label: ")
         self.frame_num2label = QLineEdit()
@@ -155,6 +155,7 @@ class ConfigWidget(QWidget):
         self.setGeometry(100, 100, 600, 300)
         self.setLayout(main_layout)
 
+
     # file dialog
     def file_dialog(self, line_edit):
         file_path, _ = QFileDialog.getOpenFileName(self, "Choose Configuration File", "", "Config Files (*.yaml *.json *.mat *.npy);;All Files (*)")
@@ -170,6 +171,7 @@ class ConfigWidget(QWidget):
             line_edit.setText(dir_path)
         # else:
             # line_edit.setText('Directory not available')
+
 
     # write the selected config into yaml file for reference and load
     # connect to the load button
@@ -224,13 +226,12 @@ class ConfigWidget(QWidget):
                     "quality_control_on": qc_mode,
                     "given_frame_indexes": frame_indexes,
                 }
-
+                
                 yaml_path = os.path.join(save_path, "config.yaml")
                 with open(yaml_path, 'w') as f:
                     yaml.dump(config, f)
                 
                 self.yaml_path = yaml_path
-                
                 # load the config file
                 self.load_config_thread()
         
@@ -238,21 +239,6 @@ class ConfigWidget(QWidget):
             self.load_button.setEnabled(True)
             self.loading_indicator.setText("Error: " + str(e) + " === Please check the config file.")
             raise e
-    # 
-    # def load_config(self, ):
-    #     yaml_path = self.yaml_path
-    #     if yaml_path:
-    #         loader = LoadYaml(yaml_path)
-    #         params = loader.get_all_params()
-    #         if params:
-    #             self.loading_indicator.setText("Loading...")
-    #             self.loading_indicator.repaint()
-    #             # self.parent().startMainWindow(params)     # here is the loading function
-    #             self.close()
-    #         else:
-    #             QMessageBox.warning(self, "Load Error", "Failed to load configuration.", QMessageBox.OK)
-    #     else:
-    #         QMessageBox.warning(self, "Error", "The config file is not valid.", QMessageBox.Ok)
     
 
     # a new load config running in another thread that would not block the main thread
@@ -303,7 +289,7 @@ class MainApplication(QApplication):
         self.mainWindow = MainWindow(params)
         self.mainWindow.show()
 
-
+    
 # the worker for config load
 # NOTE: if not qc mode, the frame is loaded in the animator class, will may still block the main thread
 class LoadConfigWorker(QObject):
@@ -344,7 +330,7 @@ class MainWindow(QMainWindow):
         self.args = args
         self.kwargs = kwargs
         self.initUI()
-    
+        
 
     def initUI(self, ):
         self.setWindowTitle("3D Labeling Tool")

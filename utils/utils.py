@@ -47,32 +47,6 @@ class LoadYaml:
         except Exception as e:
             print(f"Error loading YAML file: {e}")
 
-
-    # here get all the params and save the numpy files
-    def get_all_params(self):
-        params = {}
-        
-        params['quality_control_on'] = self.data["quality_control_on"]
-    
-        if params.get('quality_control_on'):
-            self.build_up_frames_npy()
-        else:
-            self.build_uniform_sample_indexes()
-            
-        params['cam_params'] = self.unpack_cam_params()
-        # 
-        params['video_folder'] = self.data["video_folder"]            # just one layer of folder
-        params['skeleton_path'] = self.data["skeleton_path"]
-        params['frame_num2label'] = self.data["frame_num2label"]
-        params['save_path'] = self.data["save_path"]
-
-        # the frame indexes should be the indexes file in the save path
-        save_folder = self.data["save_path"]
-
-        # FIXME: the index file load method? should we expose the api to user?
-        index_file = os.path.join(save_folder, 'indexes.npy')
-        params['frame_indexes'] = index_file        # here the frame index have a higher priority than the frame_num2label
-        return params
     
     # FIXME: consider the reload, if the indexes and frames are already stored, we could just load them directly
     def get_params(self, ):
@@ -185,12 +159,19 @@ class LoadYaml:
 
     # the function to build the frames, indexes is required
     # assert the video not aligned 
+    # TODO: if the frames are already built, we could just load the frames
     def build_frames(self, indexes):
         video_folder = self.data["video_folder"]
         save_folder = self.data["save_path"]
 
         view_folders = [f for f in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, f))]
         view_folders.sort()
+
+        # check if the frames are already built
+        # TODO: add CHECK for the avaliable frames
+        if os.path.exists(os.path.join(save_folder, "frames")):
+            print("The frames are already built")
+            return
 
         # TODO: assert the video frames number not aligned, a time cost function 
         frames_num_list = []
