@@ -6,6 +6,8 @@
 # comment: change the frame load method could not solve the problem
 # break down the 
 
+# NOTE: keep the scaling when update the frame
+
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QWheelEvent
 import cv2
 import numpy as np
@@ -230,6 +232,7 @@ class VideoAnimator(Animator):
 
 
     # TODO: change the frame update method, do not load into memory at the first time
+    # TODO: keep the scaling when update the frame
     def update_frame(self, frame_ind=None):       # this function should be use after the frame change, also used to init the scene        
         # frame_ind: the index of video frames, 
         # update frame and using self.frame as current frame
@@ -239,6 +242,9 @@ class VideoAnimator(Animator):
             
             self.frame = frame_ind
         
+        # keep the scaling, save the transform and apply to the new frame
+        current_transform = self.view.transform()
+
         # clear the scene, but the view would not change
         self.scene.clear()
 
@@ -262,8 +268,11 @@ class VideoAnimator(Animator):
         self.pixmap_item = self.scene.addPixmap(self.pixmap)
 
         # get the scene rect 
-        the_rect = self.scene.sceneRect()
-        self.view.fitInView(the_rect, Qt.KeepAspectRatio)       # fit the image to the view
+        # the_rect = self.scene.sceneRect()
+        # self.view.fitInView(the_rect, Qt.KeepAspectRatio)       # fit the image to the view
+
+        # apply the transform
+        self.view.setTransform(current_transform)
 
         # plot the labeled joint markers and lines on this frame
         for i in range(self._joints_num):
@@ -272,6 +281,15 @@ class VideoAnimator(Animator):
                 self.plot_marker_and_lines(pos, i, reprojection=False)          # update the exist markers
 
         self.scene.update()
+
+    
+    def reset_the_scale(self, ):
+        # reset the scale of the view
+        self.view.resetTransform()
+        the_rect = self.scene.sceneRect()
+        self.view.fitInView(the_rect, Qt.KeepAspectRatio)
+        self.scene.update()
+        return
 
 
     # NOTE: add at the 240628

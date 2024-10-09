@@ -155,6 +155,7 @@ class ConfigWidget(QWidget):
         self.setGeometry(100, 100, 600, 300)
         self.setLayout(main_layout)
 
+
     # file dialog
     def file_dialog(self, line_edit):
         file_path, _ = QFileDialog.getOpenFileName(self, "Choose Configuration File", "", "Config Files (*.yaml *.json *.mat *.npy);;All Files (*)")
@@ -225,7 +226,7 @@ class ConfigWidget(QWidget):
                     "quality_control_on": qc_mode,
                     "given_frame_indexes": frame_indexes,
                 }
-
+                
                 yaml_path = os.path.join(save_path, "config.yaml")
                 with open(yaml_path, 'w') as f:
                     yaml.dump(config, f)
@@ -329,7 +330,7 @@ class MainWindow(QMainWindow):
         self.args = args
         self.kwargs = kwargs
         self.initUI()
-    
+        
 
     def initUI(self, ):
         self.setWindowTitle("3D Labeling Tool")
