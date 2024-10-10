@@ -32,6 +32,12 @@
 # add we test our videos and the params
 # update: load the video frames at the first place, do not nest the loader in to deeper layer
 
+# update: 2024-10-10 
+# TODO: delete the joint (use right mouse), than T, the joint will reappear, 
+# add a check, if the current label is not enought to reconstruct, then the delete the joint3d
+# TODO: the only one label will loss, after T is pressed
+# TODO: keep the transformation even changing frame, -> add 
+# TODO: keep the point size of the joints when scaling -> means keep a relative fixed size in the view
 
 import os
 import sys
