@@ -523,7 +523,8 @@ class VideoAnimator(Animator):
     
     def mousePressEvent(self, event):
         if not self.preview_mode:
-            if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
+            if event.button() == Qt.LeftButton and event.modifiers() != Qt.ControlModifier:
+
                 # pos = event.pos()           # the event pos relative to the widget, there is a position shift between the widget and the view
                 # get the true position in the view
                 view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
@@ -531,7 +532,8 @@ class VideoAnimator(Animator):
                 self.plot_marker_and_lines([scene_pos.x(), scene_pos.y()], reprojection=False)                  # plot the marker       # 
 
             # FIXME: the delete function on the first joint could not work properly
-            elif event.button() == Qt.RightButton and event.modifiers() == Qt.ControlModifier:
+            elif event.button() == Qt.RightButton and event.modifiers() != Qt.ControlModifier:
+
                 view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
                 scene_pos = self.view.mapToScene(view_pos)
                 item = self.scene.itemAt(scene_pos, self.view.transform())
@@ -592,7 +594,8 @@ class SceneViewer(QGraphicsView):
 
 
     def mousePressEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton and event.modifiers() != Qt.ControlModifier:
+        #if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
+        if event.button() == Qt.MiddleButton:
             self._dragging = True
             self._drag_start_pos = event.pos()
             # print("drag start position: ", self._drag_start_pos.x(), self._drag_start_pos.y())
@@ -612,7 +615,7 @@ class SceneViewer(QGraphicsView):
 
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MiddleButton:
             self._dragging = False
             self.setCursor(Qt.ArrowCursor)
         super().mouseReleaseEvent(event)
