@@ -499,7 +499,7 @@ class Label3D(Animator):
                 # reproject the 3D joint to the views
                 self.reproject_for_load()
                 self.update_radio_background()
-                self.update_joint(self.current_joint_idx)
+                self.update_joint(self.current_joint_idx)       # update current joint?  ->  seems for highlight
 
 
         elif event.key() == Qt.Key_S and not self.preview_mode:
@@ -579,6 +579,8 @@ class Label3D(Animator):
 
         for animator in self.video_animators:
             animator.set_joint(self.current_joint_idx)
+            # set the hand labeled points besides the reprojected points
+            # animator.set_labeled_points(self.labeled_points[i, self.frame])
             # could highlight the current joint in this function and 
 
         self.update_radio_checked()
@@ -641,6 +643,7 @@ class Label3D(Animator):
             # get the how many views have the joint
             view_avaliable = ~np.isnan(frame_view_markers).all(axis=1)
             if np.sum(view_avaliable) < 2:
+                self.joints3d[self.frame, i, :] = np.nan
                 continue
 
             print("T the joint: ", self._joint_names[i])
