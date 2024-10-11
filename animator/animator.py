@@ -93,7 +93,7 @@ class VideoAnimator(Animator):
         self.d_lines = 1
 
         # trivial properties
-        self.marker_size = 10       # the size of the point
+        self.marker_size = 5       # the size of the point
 
         self.preview_mode = False       # the preview mode for the animator, if true, the animator could not be edited  
 
@@ -635,7 +635,7 @@ class Connection(QGraphicsLineItem):        # the line is not necessarily combin
         self.updateLine()
         
         the_color = QColor(color2QColor(color))
-        self.setPen(QPen(the_color, 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        self.setPen(QPen(the_color, 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
 
 
     def updateLine(self,):

@@ -519,6 +519,12 @@ class Label3D(Animator):
             print("C is pressed")
             self.run_quality_check()
 
+        elif event.key() == Qt.Key_F:
+            print("F is pressed")
+            # refresh the view -> rescale them
+            for i, animator in enumerate(self.video_animators):
+                animator.reset_the_scale()
+            self.update_frame()
 
         if event.key() == Qt.Key_BracketLeft:
             print("key press event (animator): bracket left")
@@ -586,7 +592,7 @@ class Label3D(Animator):
         self.frame_info.setText(f"Frame: {self.frame + 1} / {self.nFrames}")
 
         for i, animator in enumerate(self.video_animators):
-            animator.reset_the_scale()
+            #animator.reset_the_scale()
             animator.update_frame(self.frame)
             # collect the original labeled points
             self.labeled_points[i, self.frame] = np.array(animator.get_all_original_marker_2d())
