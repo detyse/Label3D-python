@@ -372,7 +372,7 @@ class MainWindow(QMainWindow):
                                 "7. Push \"Up / Down\" to change the jump speed \n"
                                 "8. Push \"[ / ]\" to change the contrast of the view image \n"
                                 "9. Keep pushing \"Mouse Middle\" drag the view \n"
-                                "10. Use \"Mouse Middle wheel\" zoom in and zoom out \n"
+                                "10. Use \"Mouse Middle wheel\" to zoom in and zoom out \n"
                                 "...")
         self.manualBox.exec()
 
