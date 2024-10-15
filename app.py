@@ -369,14 +369,17 @@ class MainWindow(QMainWindow):
         self.manualBox = QMessageBox()
         self.manualBox.setWindowTitle("User Manual")
         self.manualBox.setText("User Manual: \n\n"
-                                "1. Using \"Ctrl + Left\" to label on the view if the joint is select \n"
-                                "2. Push \"Q / E\" to select the joint \n"
-                                "3. \"Ctrl + Right\" could delete the markers \n"
-                                "4. Push \"D / A\" for next frame or last frame \n"
-                                "5. Push S for label saving \n"
-                                "6. Push \"Ctrl + R\" to clear create joint markers \n"
-                                "7. Push \"Up / Down\" to change the jump speed \n"
-                                "8. Push \"[ / ]\" to change the contrast of the view image \n"
+                                "1. Use \"Mouse Left\" to label on the view if the joint is select \n"
+                                "2. Press \"Q / E\" to select the joint \n"
+                                "3. Use \"Mouse Right\" could delete the markers \n"
+                                "4. Press \"D / A\" for next frame or last frame \n"
+                                "5. Press S for label saving \n"
+                                "6. Press \"R\" to clear create joint markers \n"
+                                "7. Press \"Up / Down\" to change the jump speed \n"
+                                "8. Press \"[ / ]\" to change the contrast of the view image \n"
+                                "9. Keep pressing \"Mouse Middle\" to drag the view \n"
+                                "10. Use \"Mouse Middle wheel\" to zoom in and zoom out \n"
+                                "11. Press \"F\" to rescale the view \n"
                                 "...")
         self.manualBox.exec()
 
