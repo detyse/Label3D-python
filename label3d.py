@@ -507,8 +507,8 @@ class Label3D(Animator):
             self.save_labels()
 
 
-        elif event.key() == Qt.Key_R and QApplication.keyboardModifiers() == Qt.ControlModifier and not self.qc_mode:
-            print("Ctrl+R is pressed")
+        elif event.key() == Qt.Key_R and not self.qc_mode:
+            print("R is pressed")
             # clear the current joint
             self.clear_current_joint()
             self.update_radio_background()
