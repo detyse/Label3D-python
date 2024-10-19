@@ -318,9 +318,11 @@ class MainWindow(QMainWindow):
         self.video_folder = params['video_folder']    # 
         self.skeleton_path = params['skeleton_path']
         self.frame_num2label = params['frame_num2label']
+        self.total_frame_num = params['total_frame_num']
         self.save_path = params['save_path']
         self.qc_mode = params['quality_control_on']
         self.frame_indexes = params['frame_indexes']    # the frame indexes are not required to be depulicated
+
         
         # if the qc_mode is on, this index is a random sampled index with depulication
         # else the index is uniformly sampled
@@ -338,7 +340,7 @@ class MainWindow(QMainWindow):
         
         layout = QVBoxLayout()
         self.label3d = Label3D(camParams=self.camParams, video_folder=self.video_folder, skeleton=self.skeleton_path, frame_num2label=self.frame_num2label, save_path=self.save_path,
-                               frame_indexes=self.frame_indexes, qc_mode=self.qc_mode)        # newly added params
+                               frame_indexes=self.frame_indexes, total_frame_num=self.total_frame_num, qc_mode=self.qc_mode)        # newly added params
         # the frame index will generate automatically in the video folder
         layout.addWidget(self.label3d)
 
@@ -364,13 +366,13 @@ class MainWindow(QMainWindow):
         self.manualBox.setWindowTitle("User Manual")
         self.manualBox.setText("User Manual: \n\n"
                                 "1. Use \"Mouse Left\" to label on the view if the joint is select \n"
-                                "2. Press \"Q / E\" to select the joint \n"
+                                "2. Press \"Q\" and \"E\" to select the joint \n"
                                 "3. Use \"Mouse Right\" could delete the markers \n"
-                                "4. Press \"D / A\" for next frame or last frame \n"
+                                "4. Press \"D\" and \"A\" for next frame or last frame \n"
                                 "5. Press S for label saving \n"
                                 "6. Press \"R\" to clear create joint markers \n"
-                                "7. Press \"Up / Down\" to change the jump speed \n"
-                                "8. Press \"[ / ]\" to change the contrast of the view image \n"
+                                "7. Press \"Up\" and \"Down\" to change the jump speed \n"
+                                "8. Press \"[\" and \"]\" to change the contrast of the view image \n"
                                 "9. Keep pressing \"Mouse Middle\" to drag the view \n"
                                 "10. Use \"Mouse Middle wheel\" to zoom in and zoom out \n"
                                 "...")

@@ -2,7 +2,7 @@ import os
 import sys
 import time
 import datetime
-
+import scipy
 import numpy as np
 import pandas as pd
 
@@ -25,7 +25,7 @@ class Label3D(Animator):
     # signal
     update_status = Signal(str)
 
-    def __init__(self, camParams=None, video_folder=None, skeleton=None, frame_num2label=None, save_path=None, frame_indexes=None, qc_mode=False) -> None:      # the qc_mode could be defined in the yaml file
+    def __init__(self, camParams=None, video_folder=None, skeleton=None, frame_num2label=None, save_path=None, frame_indexes=None, total_frame_num=None, qc_mode=False, ) -> None:      # the qc_mode could be defined in the yaml file
         super().__init__()  
         # assert
         self.camParams = camParams          # the camera parameters
@@ -35,7 +35,7 @@ class Label3D(Animator):
         # will be a just a folder
         self.skeleton = read_json_skeleton(skeleton)
         self.label_num = frame_num2label
-
+        self.total_frame_num = total_frame_num
         self.save_path = save_path
 
         self.views_video = self.get_views_video()        # the video path for each view, the video_folder    
@@ -506,6 +506,9 @@ class Label3D(Animator):
             print("S is pressed")
             self.save_labels()
 
+        elif event.key() == Qt.Key_M and not self.preview_mode:
+            print("M is pressed")
+            self.save_mat()
 
         elif event.key() == Qt.Key_R and not self.qc_mode:
             print("R is pressed")
@@ -710,6 +713,49 @@ class Label3D(Animator):
 
         print("Data saved!")
         return True
+
+    def save_mat(self, ):
+        #TODO: modify the data structure to fit the DANNCE format
+        print('saving the joints3d and labeled_points into a DANNCE format mat file')
+        #saving the joints3d and labeled_points into a DANNCE format mat file
+        joints3d = np.array(self.joints3d)
+        labeled_points = np.array(self.labeled_points)
+
+        fps = 25
+        fpm = 1000/fps  # frame period in ms
+        total_frames_num = self.total_frame_num
+        sync_data_frame = np.arange(total_frames_num).astype("float64")
+        sync_data_sampleID = sync_data_frame * fpm + 1
+        sync_data_2d = np.zeros((total_frames_num, 2 * labeled_points.shape[2]))
+        sync_data_3d = np.zeros((total_frames_num, 3 * joints3d.shape[1]))
+
+        # reshaping the joints3d and labeled_points to DANNCE format :(frame, joint*3) and (view, frame, joint*2)
+        joints3d = joints3d.reshape((joints3d.shape[0], joints3d.shape[1] * joints3d.shape[2]))
+        labeled_points = labeled_points.reshape(
+            (labeled_points.shape[0], labeled_points.shape[1], labeled_points.shape[3] * labeled_points.shape[2]))
+
+        camParams = []
+        labelData = []
+        camnames = []
+        sync = []
+        frame_indexs = np.load(self.frame_indexes)
+
+        for i in range(self.view_num):
+            camnames.append(np.array("Camera" + str(i+1)))
+            labelData.append({"data_2d":labeled_points[i,:,:], "data_3d": joints3d, "data_frame":frame_indexs, "data_sampleID": sync_data_sampleID[:, np.newaxis][frame_indexs]})
+            sync.append({"data_frame":sync_data_frame[:, np.newaxis], "data_sampleID":sync_data_sampleID[:, np.newaxis], "data_2d":sync_data_2d, "data_3d":sync_data_3d})
+            camParams.append([self.camParams[i][0][0]])
+
+
+        now = str(datetime.datetime.now())
+        now = now[:now.find(".")]
+        now = now.replace(" ", "_")
+        now = now.replace(":", "")
+        mat_file_path = os.path.join(self.save_path, now + '_py_annotation' ".mat")
+
+        scipy.io.savemat(mat_file_path, {"camnames":camnames,"labelData": labelData, "sync": sync, 'params':camParams})
+        print("Mat file saved to: ", mat_file_path)
+
 
 
     def closeEvent(self, event):

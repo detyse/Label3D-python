@@ -100,6 +100,9 @@ class LoadYaml:
         # save the index file should be the last step to load the params
         np.save(the_index_file, final_indexes)
         params['frame_indexes'] = the_index_file
+        if 'total_frames' not in locals():
+            _, total_frames = self.get_index(sample_num)
+        params['total_frame_num'] = total_frames
             
         return params
 
