@@ -84,7 +84,7 @@ class VideoAnimator(Animator):
         self.f_joints2markers = {}            # a dict map the joint name to the marker on this frame
         # will these change after reprojection? if not we could update the frame after the reprojection
         
-        # 
+        # reset the makers
         self.frames_markers = np.full((self.nFrames, len(self._joint_names), 2), np.nan)
         self.original_markers = np.full((self.nFrames, len(self._joint_names), 2), np.nan)      # not used for now
         # here markers are all position, not the items
@@ -264,6 +264,8 @@ class VideoAnimator(Animator):
             current_frame = np.load(self.video_frames, mmap_mode='r')[self.frame]   # NOTE: could be time consuming
         elif self.video_frames.endswith('.mp4') or self.video_frames.endswith('.avi'):
             current_frame = self.load_video_frame(self.video_frames, self.label_num, self.frame)
+
+        print(f"current_frame shape: {current_frame.shape}")
 
         height, width, channels = current_frame.shape       # the frame shape would change
         # print(f"frame shape: {height}, {width}, {channels}")
@@ -556,12 +558,18 @@ class VideoAnimator(Animator):
     
     # new function for the viewer mode
     def load_video_frame(self, video_frames, label_num, frame):
+        
+        print(f"video_frames: {video_frames}")
+        print(f"label_num: {label_num}")
+        print(f"frame: {frame}")
+
         cap = cv2.VideoCapture(video_frames)
         frame_index = label_num[frame]
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
         ret, frame = cap.read()
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         frame = np.array(frame)
+
         cap.release()
         return frame
 

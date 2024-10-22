@@ -21,6 +21,7 @@ class ViewerLoader(QWidget):
         super().__init__()
         self.initUI()
         self.setWindowTitle("Load config for 3D Pose Viewer")
+        self.setGeometry(100, 100, 600, 300)
 
     def initUI(self):
         layout = QGridLayout()
@@ -83,7 +84,9 @@ class ViewerLoader(QWidget):
         self.show_results.setCurrentText("frame order")
         layout.addWidget(self.show_results_label, 6, 0)
         layout.addWidget(self.show_results, 6, 1)
-        layout.addWidget(QPushButton("Load"), 6, 2)
+        self.load_button = QPushButton("Load")
+        self.load_button.clicked.connect(self.view_data)
+        layout.addWidget(self.load_button, 6, 2)
 
         self.setLayout(layout)
 
@@ -95,7 +98,7 @@ class ViewerLoader(QWidget):
 
 
     def file_dialog(self, line_edit):
-        file_path = QFileDialog.getOpenFileName(self, "Choose File")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Choose Configuration File", "", "Config Files (*.yaml *.json *.mat *.npy);;All Files (*)")
         if file_path:
             line_edit.setText(file_path)
 
@@ -108,7 +111,7 @@ class ViewerLoader(QWidget):
         # load the mat file
         # get the index to check
         pred, p_max, sampleID = self.load_mat_file(self.mat_path.text())
-        total_frame_num = len(sampleID)
+        total_frame_num = sampleID.shape[-1]
         if self.frame2check.text():
             index2check = np.arange(total_frame_num)[np.load(self.frame2check.text())]
         else:
@@ -129,7 +132,11 @@ class ViewerLoader(QWidget):
 
         # load the viewer window
         joints3d = pred[view_indexes, :, :]
+        joints3d = joints3d.transpose(0, 2, 1)
         kwargs['joints3d'] = joints3d
+
+        # pass the p value into the viewer window
+        kwargs['p_max'] = p_max[view_indexes]
 
         # TODO: double check the params
         params['frame_indexes'] = view_indexes
@@ -143,7 +150,14 @@ class ViewerLoader(QWidget):
         params['skeleton_path'] = self.skeleton_path.text()
 
         self.viewer_window = ViewerWindow(params, **kwargs)
+        self.viewer_window.show()
 
+        # dismiss the current window
+        self.close()
+
+    def on_viewer_window_close(self, event):
+        self.show()
+        event.accept()
 
     def load_mat_file(self, mat_path):
         mat_data = loadmat(mat_path)
@@ -153,16 +167,22 @@ class ViewerLoader(QWidget):
         p_max: probability, N x k
         sampleID: the index of the frame in microseconds
         '''
-        pred = mat_data['pred'][0]
-        p_max = mat_data['p_max'][0]
-        sampleID = mat_data['sampleID'][0]
+        pred = mat_data['pred']
+        # print(f"pred shape: {pred.shape}")
+        # print(f"pred type: {type(pred)}")
+        p_max = mat_data['p_max']
+        # print(f"p_max shape: {p_max.shape}")
+        # print(f"p_max type: {type(p_max)}")
+        sampleID = mat_data['sampleID']
+        # print(f"sampleID shape: {sampleID.shape}")
+        # print(f"sampleID type: {type(sampleID)}")
 
         return pred, p_max, sampleID
     
 
     # load the cam params with this function
-    def unpack_cam_params(self, ):
-        cam_params = loadmat(self.data["cam_params"])['params']
+    def unpack_cam_params(self, calibration_path):
+        cam_params = loadmat(calibration_path)['params']
         
         load_camParams = []
         for i in range(len(cam_params)):
@@ -193,7 +213,11 @@ class ViewerWindow(QMainWindow):
         self.params = params
 
         self.frame_indexes = params['frame_indexes']
+        print(f"frame_indexes: {self.frame_indexes}")
+
         self.frame_num2label = params['frame_num2label']    # the index, which is quite important
+        print(f"frame_num2label: {self.frame_num2label}")
+        
         self.save_path = None
         self.qc_mode = False
 
@@ -203,6 +227,7 @@ class ViewerWindow(QMainWindow):
 
         self.args = args
         self.kwargs = kwargs
+
         self.initUI()
 
 
@@ -210,7 +235,10 @@ class ViewerWindow(QMainWindow):
         self.setWindowTitle("3D Pose Viewer")
         self.setGeometry(100, 100, 800, 600)
 
-        layout = QVBoxLayout()
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+
+        layout = QVBoxLayout(central_widget)
         self.label3d = Label3D(
             camParams=self.camParams, 
             video_folder=self.video_folder, 
@@ -221,6 +249,8 @@ class ViewerWindow(QMainWindow):
             frame_indexes=self.frame_indexes,
             view_mode=True,
             **self.kwargs)
+
+        layout.addWidget(self.label3d)
         
 
     def closeEvent(self, event):

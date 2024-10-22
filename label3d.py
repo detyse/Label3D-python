@@ -33,7 +33,7 @@ class Label3D(Animator):
                  save_path=None, 
                  frame_indexes=None, 
                  qc_mode=False, 
-                 view_mode=False, 
+                 view_mode=False,
                  **kwargs) -> None:      # the qc_mode could be defined in the yaml file
         super().__init__()  
         # assert
@@ -47,6 +47,9 @@ class Label3D(Animator):
 
         self.save_path = save_path
 
+        self.view_mode = view_mode
+        self.kwargs = kwargs
+        
         self.views_video = self.get_views_video()        # the video path for each view, the video_folder    
         
         assert len(self.camParams) == len(self.views_video)
@@ -57,16 +60,12 @@ class Label3D(Animator):
         self.qc_mode = qc_mode
         # self.duplication_index = frame_index        # to get the duplication frames position
 
-        self.view_mode = view_mode
-        self.kwargs = kwargs
-
         self._unpack_camParams()
         self.frame_align_with_animators()
         self._init_properties()
         self._initGUI()
         self._load_labels()
         
-
     # 
     def get_views_video(self, ):
         # just read the frames in the output folder
@@ -100,25 +99,9 @@ class Label3D(Animator):
         # TODO: confirm the camParams format and order
         for cam in self.camParams:          # keep order? 
             r.append(cam["r"][0][0].T)      # 
-            # r.append(cam["r"][0][0])           # temp change
-            
-            # get the translation vector
-            # trans_vector = cam["t"][0][0]
-            # trans_vector = trans_vector[::-1]
-            # # reverse the vector
-            # t.append(trans_vector)
             t.append(cam["t"][0][0])
-
             K.append(cam["K"][0][0].T)        # temp change
-
-            # rdistort = cam["RDistort"][0][0]
-            # rdistort = rdistort[::-1]
-            # RDist.append(rdistort)
             RDist.append(cam["RDistort"][0][0])
-            
-            # tdistort = cam["TDistort"][0][0]
-            # tdistort = tdistort[::-1]
-            # TDist.append(tdistort
             TDist.append(cam["TDistort"][0][0])
         
         self.r = np.array(r)
@@ -178,7 +161,15 @@ class Label3D(Animator):
         self.contrast_factor = 1.0
 
         # set the preview mode
-        self.preview_mode = False
+        if self.view_mode:
+            self.preview_mode = True
+            self.preview_mode_change()
+        else:
+            self.preview_mode = False
+        
+        
+   
+        self.p_max = self.kwargs['p_max']
 
 
     def _initGUI(self, ):
@@ -237,7 +228,7 @@ class Label3D(Animator):
         self.jump_to = QLineEdit(self)
         # limit the max length of the input
         self.jump_to.setMaxLength(5)        # limit the character length
-        self.jump_to.setValidator(QIntValidator(0, self.nFrames - 1, self))        # limit the input range
+        self.jump_to.setValidator(QIntValidator(1, self.nFrames, self))        # limit the input range
         self.jump_to.setMaximumWidth(100)
         self.jump_to.setPlaceholderText("Jump to frame")
         self.jump_to.returnPressed.connect(lambda: self.jump_to_frame(int(self.jump_to.text()) - 1))
@@ -251,8 +242,10 @@ class Label3D(Animator):
         # TODO: add the preview button for preview mode change
         self.preview_button = QPushButton("Preview Mode", self)
         self.preview_button.clicked.connect(self.preview_mode_change)
+        if self.view_mode:
+            self.preview_button.setEnabled(False)
         frame_info_layout.addWidget(self.preview_button)
-
+        
         # TODO: add the qc button on the frame info layout
         self.qc_button = QPushButton("Quality Check", self)
         if not self.qc_mode:
@@ -271,7 +264,7 @@ class Label3D(Animator):
     def _set_animators(self, ):         # the video passed to the animator should be a list of all the video files
         video_animators = []            # a function to get the corresponding video list, in the utils: yaml loader
         for video in self.views_video:        
-            animator = VideoAnimator(video, self.skeleton, self.label_num)
+            animator = VideoAnimator(video, self.skeleton, self.frame_indexes)
             animator.setParent(self)
             video_animators.append(animator)
         return video_animators
@@ -298,6 +291,29 @@ class Label3D(Animator):
     # 
     def _load_labels(self, ):
         # load the self.joints3d to animators
+        print("Entering reproject_for_load method")
+        print(f"self.joints3d shape: {self.joints3d.shape}")
+        print(f"self.r shape: {self.r.shape if hasattr(self.r, 'shape') else 'Not a numpy array'}")
+        print(f"self.t shape: {self.t.shape if hasattr(self.t, 'shape') else 'Not a numpy array'}")
+        print(f"self.K shape: {self.K.shape if hasattr(self.K, 'shape') else 'Not a numpy array'}")
+        print(f"self.RDist shape: {self.RDist.shape if hasattr(self.RDist, 'shape') else 'Not a numpy array'}")
+        print(f"self.TDist shape: {self.TDist.shape if hasattr(self.TDist, 'shape') else 'Not a numpy array'}")
+        print(f"self.view_num: {self.view_num}")
+
+        # Check if joints3d is empty
+        if self.joints3d.size == 0:
+            print("Error: self.joints3d is empty")
+            return
+
+        # Ensure joints3d is the correct shape and type
+        if self.joints3d.ndim != 3:
+            print(f"Error: self.joints3d should be 3-dimensional, but it has {self.joints3d.ndim} dimensions")
+            return
+        
+        if self.joints3d.dtype != np.float32 and self.joints3d.dtype != np.float64:
+            print(f"Warning: self.joints3d dtype is {self.joints3d.dtype}, converting to float32")
+            self.joints3d = self.joints3d.astype(np.float32)
+        
         self.reproject_for_load()
         self.update_radio_background()
         self.update_frame()
@@ -321,7 +337,10 @@ class Label3D(Animator):
         #     assert self.nFrames == 2 * len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
         # else:
         #     assert self.nFrames == len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
-        assert self.nFrames == len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
+        if not self.view_mode:
+            assert self.nFrames == len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
+        else:
+            assert self.nFrames == len(self.frame_indexes), "The frame index is not aligned with the video frames"
 
         self.frameInd = np.arange(self.nFrames)
 
@@ -401,20 +420,28 @@ class Label3D(Animator):
             if not np.isnan(self.joints3d[current_frame]).any():
                 # all the joints are labeled, update frame directly
                 self.update_frame()
-                return
             elif not self.preview_mode:
                 if self.warning_for_framechange():
                     self.update_frame()
                 else: 
                     self.frame = current_frame
-                    return
             else:
                 self.update_frame()
-                return
+            # show the p_max value in the radio button
+            return
+
         else:
             # do nothing
             return
 
+
+    def update_p_max(self, ):
+        # update the p_max value in the radio button
+        # iterate the joints name
+        for i, joint in enumerate(self._joint_names):
+            self.joint_button[joint].setText(f"{joint}: {self.p_max[self.frame, i]:.2f}")
+        return
+    
 
     # do not needed now
     def update_frameRate(self, forward=True):       # keep the value be int
@@ -613,7 +640,7 @@ class Label3D(Animator):
     # update the frame to control the animator frame change
     def update_frame(self, ):
         # update the frame index
-        self.frame_banner.setText(f"Current Frame: {np.load(self.frame_indexes)[self.frame]}")
+        self.frame_banner.setText(f"Current Frame: {self.frame_indexes[self.frame]}")
 
         self.frame_info.setText(f"Frame: {self.frame + 1} / {self.nFrames}")
 
@@ -625,6 +652,10 @@ class Label3D(Animator):
 
         self.update_radio_background()
         self.update_radio_checked()
+
+        if self.p_max is not None:
+            self.update_p_max()
+
         # TODO: will the enable state change?
 
         if not self.view_mode:
