@@ -65,7 +65,7 @@ class Label3D(Animator):
         self._init_properties()
         self._initGUI()
         self._load_labels()
-        
+
         self.preview_mode_change()
         
     # 
@@ -164,10 +164,10 @@ class Label3D(Animator):
 
         # set the preview mode
         if self.view_mode:
-            self.preview_mode = True
+            self.preview_mode = False
 
         else:
-            self.preview_mode = False
+            self.preview_mode = True
         
         self.p_max = self.kwargs['p_max']
 
