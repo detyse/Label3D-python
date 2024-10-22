@@ -55,7 +55,7 @@ class LoadYaml:
         params['skeleton_path'] = self.data["skeleton_path"]
         params['save_path'] = self.data["save_path"]
         params['video_folder'] = self.data["video_folder"]
-
+        
         # create the index and the frames here
         save_folder = self.data["save_path"]
 

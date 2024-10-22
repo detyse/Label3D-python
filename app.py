@@ -343,8 +343,14 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 800, 600)
         
         layout = QVBoxLayout()
-        self.label3d = Label3D(camParams=self.camParams, video_folder=self.video_folder, skeleton=self.skeleton_path, frame_num2label=self.frame_num2label, save_path=self.save_path,
-                               frame_indexes=self.frame_indexes, qc_mode=self.qc_mode)        # newly added params
+        self.label3d = Label3D(camParams=self.camParams, 
+                               video_folder=self.video_folder, 
+                               skeleton=self.skeleton_path, 
+                               frame_num2label=self.frame_num2label, 
+                               save_path=self.save_path,
+                               frame_indexes=self.frame_indexes, 
+                               qc_mode=self.qc_mode
+                               )        # newly added params
         # the frame index will generate automatically in the video folder
         layout.addWidget(self.label3d)
 

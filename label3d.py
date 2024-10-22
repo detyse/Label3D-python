@@ -25,7 +25,16 @@ class Label3D(Animator):
     # signal
     update_status = Signal(str)
 
-    def __init__(self, camParams=None, video_folder=None, skeleton=None, frame_num2label=None, save_path=None, frame_indexes=None, qc_mode=False) -> None:      # the qc_mode could be defined in the yaml file
+    def __init__(self, 
+                 camParams=None, 
+                 video_folder=None, 
+                 skeleton=None, 
+                 frame_num2label=None, 
+                 save_path=None, 
+                 frame_indexes=None, 
+                 qc_mode=False, 
+                 view_mode=False, 
+                 **kwargs) -> None:      # the qc_mode could be defined in the yaml file
         super().__init__()  
         # assert
         self.camParams = camParams          # the camera parameters
@@ -43,10 +52,13 @@ class Label3D(Animator):
         assert len(self.camParams) == len(self.views_video)
         self.view_num = len(self.camParams)
 
-        self.frame_indexes = frame_indexes      # 
+        self.frame_indexes = frame_indexes      # this is used for show the frame index in the video
 
         self.qc_mode = qc_mode
         # self.duplication_index = frame_index        # to get the duplication frames position
+
+        self.view_mode = view_mode
+        self.kwargs = kwargs
 
         self._unpack_camParams()
         self.frame_align_with_animators()
@@ -58,6 +70,13 @@ class Label3D(Animator):
     # 
     def get_views_video(self, ):
         # just read the frames in the output folder
+        if self.view_mode is True:
+            view_folders = [f for f in os.listdir(self.video_folder) if os.path.isdir(os.path.join(self.video_folder, f))]
+            view_folders.sort()
+            views = [os.path.join(self.video_folder, f) for f in view_folders]
+            return views
+
+        # read the frames in the save folder
         video_folder = self.save_path
         frames_path = os.path.join(video_folder, "frames")
         
@@ -132,13 +151,18 @@ class Label3D(Animator):
         self.labeled_points = np.full((self.view_num, self.nFrames, len(self._joint_names), 2), np.nan)     # NOTE: data to be saved
         # how to get the original point position from the animator?
         
-        if os.path.exists(os.path.join(self.save_path, "joints3d.npy")):
-            print("Loading existing labels")
-            self.joints3d = np.load(os.path.join(self.save_path, "joints3d.npy"))
+        if self.view_mode is False:
+            if os.path.exists(os.path.join(self.save_path, "joints3d.npy")):
+                print("Loading existing labels")
+                self.joints3d = np.load(os.path.join(self.save_path, "joints3d.npy"))
         
-        if os.path.exists(os.path.join(self.save_path, "labeled_points.npy")):
-            print("Loading existing original labels")
-            self.labeled_points = np.load(os.path.join(self.save_path, "labeled_points.npy"))
+            if os.path.exists(os.path.join(self.save_path, "labeled_points.npy")):
+                print("Loading existing original labels")
+                self.labeled_points = np.load(os.path.join(self.save_path, "labeled_points.npy"))
+        
+        else:
+            self.joints3d = self.kwargs['joints3d']
+            # the labeled points could be not defined
 
         # for qc mode, and check the parameters are given or not
         # the qc mode should follow the config file
@@ -468,7 +492,7 @@ class Label3D(Animator):
             # self.jump_rate.setText(f"Jump Rate: {self.frameRate}")
             self.update_frameRate(False)
 
-        elif event.key() == Qt.Key_Q and not self.preview_mode:
+        elif event.key() == Qt.Key_Q and not self.preview_mode and not self.view_mode:
             print("Q is pressed")
             if self.current_joint_idx is None:
                 self.update_joint(0)
@@ -478,7 +502,7 @@ class Label3D(Animator):
                 self.update_joint(len(self._joint_names) - 1)
 
         # switch joint
-        elif event.key() == Qt.Key_E and not self.preview_mode:
+        elif event.key() == Qt.Key_E and not self.preview_mode and not self.view_mode:
             print("E is pressed")
             if self.current_joint_idx is None:
                 self.update_joint(0)
@@ -491,7 +515,7 @@ class Label3D(Animator):
         # BUG: the bug is, delete some point and redraw them with a "T" will cause the point disappear
         # triangulate the 3D joint
         # TODO: check the function
-        elif event.key() == Qt.Key_T and not self.preview_mode:
+        elif event.key() == Qt.Key_T and not self.preview_mode and not self.view_mode:
             print("T is pressed")
             # FIXME: when there are only one view is labeled, the reprojection will case the marker disappear
             if self.triangulate_all_joints():
@@ -502,12 +526,12 @@ class Label3D(Animator):
                 self.update_joint(self.current_joint_idx)       # update current joint?  ->  seems for highlight
 
 
-        elif event.key() == Qt.Key_S and not self.preview_mode:
+        elif event.key() == Qt.Key_S and not self.preview_mode and not self.view_mode:
             print("S is pressed")
             self.save_labels()
 
 
-        elif event.key() == Qt.Key_R and QApplication.keyboardModifiers() == Qt.ControlModifier and not self.qc_mode:
+        elif event.key() == Qt.Key_R and QApplication.keyboardModifiers() == Qt.ControlModifier and not self.qc_mode and not self.view_mode:
             print("Ctrl+R is pressed")
             # clear the current joint
             self.clear_current_joint()
@@ -515,11 +539,11 @@ class Label3D(Animator):
 
 
         # define the quality check shortcut
-        elif event.key() == Qt.Key_C and not self.preview_mode:
+        elif event.key() == Qt.Key_C and not self.preview_mode and not self.view_mode:
             print("C is pressed")
             self.run_quality_check()
 
-        elif event.key() == Qt.Key_F:
+        elif event.key() == Qt.Key_F:  
             print("F is pressed")
             # refresh the view -> rescale them
             for i, animator in enumerate(self.video_animators):
@@ -603,7 +627,8 @@ class Label3D(Animator):
         self.update_radio_checked()
         # TODO: will the enable state change?
 
-        self.save_labels()
+        if not self.view_mode:
+            self.save_labels()
         
 
     # turn the current joint data into nan
@@ -719,7 +744,8 @@ class Label3D(Animator):
         for i, animator in enumerate(self.video_animators):
             self.labeled_points[i, self.frame] = np.array(animator.get_all_original_marker_2d())
             animator.close()
-        self.save_labels()
+        if not self.view_mode:
+            self.save_labels()
         event.accept()
         return
     
