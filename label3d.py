@@ -66,6 +66,8 @@ class Label3D(Animator):
         self._initGUI()
         self._load_labels()
         
+        self.preview_mode_change()
+        
     # 
     def get_views_video(self, ):
         # just read the frames in the output folder
@@ -163,12 +165,10 @@ class Label3D(Animator):
         # set the preview mode
         if self.view_mode:
             self.preview_mode = True
-            self.preview_mode_change()
+
         else:
             self.preview_mode = False
         
-        
-   
         self.p_max = self.kwargs['p_max']
 
 
