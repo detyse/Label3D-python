@@ -48,6 +48,7 @@ class Label3D(Animator):
         self.save_path = save_path
 
         self.view_mode = view_mode
+
         self.kwargs = kwargs
         
         self.views_video = self.get_views_video()        # the video path for each view, the video_folder    
@@ -116,8 +117,6 @@ class Label3D(Animator):
     def _init_properties(self, ):        
         # assert the cam and video number, keep the order
         assert len(self.camParams) == len(self.views_video), "The number of cameras and videos should be the same"
-        print(f"Number of cameras: {len(self.camParams)}")
-        print(f"Number of videos: {len(self.views_video)}")
 
         self.view_num = len(self.camParams)
 
@@ -147,6 +146,7 @@ class Label3D(Animator):
         
         else:
             self.joints3d = self.kwargs['joints3d']
+            self.p_max = self.kwargs['p_max']
             # the labeled points could be not defined
 
         # for qc mode, and check the parameters are given or not
@@ -169,8 +169,6 @@ class Label3D(Animator):
         else:
             self.preview_mode = True
         
-        self.p_max = self.kwargs['p_max']
-
 
     def _initGUI(self, ):
         self.setCursor(Qt.ArrowCursor)
@@ -291,14 +289,6 @@ class Label3D(Animator):
     # 
     def _load_labels(self, ):
         # load the self.joints3d to animators
-        print("Entering reproject_for_load method")
-        print(f"self.joints3d shape: {self.joints3d.shape}")
-        print(f"self.r shape: {self.r.shape if hasattr(self.r, 'shape') else 'Not a numpy array'}")
-        print(f"self.t shape: {self.t.shape if hasattr(self.t, 'shape') else 'Not a numpy array'}")
-        print(f"self.K shape: {self.K.shape if hasattr(self.K, 'shape') else 'Not a numpy array'}")
-        print(f"self.RDist shape: {self.RDist.shape if hasattr(self.RDist, 'shape') else 'Not a numpy array'}")
-        print(f"self.TDist shape: {self.TDist.shape if hasattr(self.TDist, 'shape') else 'Not a numpy array'}")
-        print(f"self.view_num: {self.view_num}")
 
         # Check if joints3d is empty
         if self.joints3d.size == 0:
@@ -317,7 +307,8 @@ class Label3D(Animator):
         self.reproject_for_load()
         self.update_radio_background()
         self.update_frame()
-
+        for animator in self.video_animators:
+            animator.reset_the_scale()
 
     def frame_align_with_animators(self, ):
         self.video_animators = self._set_animators()
@@ -653,7 +644,8 @@ class Label3D(Animator):
         self.update_radio_background()
         self.update_radio_checked()
 
-        if self.p_max is not None:
+        # is self.p_max is defined and self.view_mode is True
+        if hasattr(self, 'p_max') and self.view_mode:
             self.update_p_max()
 
         # TODO: will the enable state change?

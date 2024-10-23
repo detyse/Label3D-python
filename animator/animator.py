@@ -265,8 +265,6 @@ class VideoAnimator(Animator):
         elif self.video_frames.endswith('.mp4') or self.video_frames.endswith('.avi'):
             current_frame = self.load_video_frame(self.video_frames, self.label_num, self.frame)
 
-        print(f"current_frame shape: {current_frame.shape}")
-
         height, width, channels = current_frame.shape       # the frame shape would change
         # print(f"frame shape: {height}, {width}, {channels}")
         bytesPerLine = channels * width

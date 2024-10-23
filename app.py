@@ -326,7 +326,7 @@ class MainWindow(QMainWindow):
         self.frame_num2label = params['frame_num2label']
         self.save_path = params['save_path']
         self.qc_mode = params['quality_control_on']
-        self.frame_indexes = params['frame_indexes']    # the frame indexes are not required to be depulicated
+        self.frame_indexes = params['frame_indexes']    # the frame indexes are not required to be depulicated, for banner
         
         # if the qc_mode is on, this index is a random sampled index with depulication
         # else the index is uniformly sampled
@@ -349,7 +349,8 @@ class MainWindow(QMainWindow):
                                frame_num2label=self.frame_num2label, 
                                save_path=self.save_path,
                                frame_indexes=self.frame_indexes, 
-                               qc_mode=self.qc_mode
+                               qc_mode=self.qc_mode,
+                               view_mode=False,
                                )        # newly added params
         # the frame index will generate automatically in the video folder
         layout.addWidget(self.label3d)

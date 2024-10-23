@@ -1,5 +1,8 @@
 # helper functions for label 3d
 # load skeleton and camera parameters into json format
+
+# TODO: FIX THE FRAME_INDEX BUG
+
 import sys
 import json
 import csv
