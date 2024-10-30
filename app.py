@@ -31,6 +31,13 @@
 # also add the video 
 # add we test our videos and the params
 # update: load the video frames at the first place, do not nest the loader in to deeper layer
+# update: 2024-10-10
+# DONE: delete the joint (use right mouse), than T, the joint will reappear,
+# add a check, if the current label is not enought to reconstruct, then the delete the joint3d
+# TODO: the only one label will loss, after T is pressed
+# DONE: keep the transformation even changing frame, -> add
+# TODO: keep the point size of the joints when scaling -> means keep a relative fixed size in the view
+
 
 
 import os
@@ -321,7 +328,7 @@ class MainWindow(QMainWindow):
         self.total_frame_num = params['total_frame_num']
         self.save_path = params['save_path']
         self.qc_mode = params['quality_control_on']
-        self.frame_indexes = params['frame_indexes']    # the frame indexes are not required to be depulicated
+        self.frame_indexes = params['frame_indexes']    # the frame indexes are not required to be depulicated, for banner
 
         
         # if the qc_mode is on, this index is a random sampled index with depulication
@@ -339,8 +346,14 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 800, 600)
         
         layout = QVBoxLayout()
-        self.label3d = Label3D(camParams=self.camParams, video_folder=self.video_folder, skeleton=self.skeleton_path, frame_num2label=self.frame_num2label, save_path=self.save_path,
-                               frame_indexes=self.frame_indexes, total_frame_num=self.total_frame_num, qc_mode=self.qc_mode)        # newly added params
+        self.label3d = Label3D(camParams=self.camParams,video_folder=self.video_folder,
+                               skeleton=self.skeleton_path,
+                               frame_num2label=self.frame_num2label,
+                               save_path=self.save_path,
+                               frame_indexes=self.frame_indexes,
+                               qc_mode=self.qc_mode,
+                               view_mode=False,
+                               )        # newly added params
         # the frame index will generate automatically in the video folder
         layout.addWidget(self.label3d)
 
@@ -375,6 +388,7 @@ class MainWindow(QMainWindow):
                                 "8. Press \"[\" and \"]\" to change the contrast of the view image \n"
                                 "9. Keep pressing \"Mouse Middle\" to drag the view \n"
                                 "10. Use \"Mouse Middle wheel\" to zoom in and zoom out \n"
+                                "11. Press \"F\" to rescale the view \n"
                                 "...")
         self.manualBox.exec()
 
