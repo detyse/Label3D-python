@@ -144,7 +144,7 @@ class ConfigWidget(QWidget):
         button_layout.addWidget(self.quality_control)
 
         # the load button
-        self.load_button = QPushButton("Load Config")
+        self.load_button = QPushButton("Start")
         self.load_button.clicked.connect(self.write_config)     # update the config and load the config
         button_layout.addWidget(self.load_button)
 

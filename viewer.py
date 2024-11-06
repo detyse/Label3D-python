@@ -58,7 +58,7 @@ class ViewerLoader(QWidget):
         layout.addWidget(self.param_path_label, 3, 0)
         layout.addWidget(self.param_path, 3, 1)
         layout.addWidget(self.param_path_browse, 3, 2)
-
+        
         # the frame to check load a one dimansion numpy array
         # have the highest priority, if the frame2check is set the frame_num2check will be ignored
         self.frame2check_label = QLabel("Frame to Check: ")

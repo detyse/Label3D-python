@@ -17,10 +17,8 @@ from animator.animator import Animator, VideoAnimator
 # use track to track the crush bug
 import traceback
 
-# TODO: if the qc mode is no check the quality of the labeled data, the qc mode could be closed
-# TODO: fix the crash bug
-# FIXME: the crush problem could induce by memory 
 # is a GUI for manual labeling of 3D keypoints in multiple cameras.
+# TODO: check the frame_num2label param and the frame_indexes param
 class Label3D(Animator):
     # signal
     update_status = Signal(str)
@@ -39,16 +37,12 @@ class Label3D(Animator):
         self.save_path = save_path
 
         self.view_mode = view_mode
-
         self.kwargs = kwargs
-
         self.views_video = self.get_views_video()        # the video path for each view, the video_folder    
 
         assert len(self.camParams) == len(self.views_video)
         self.view_num = len(self.camParams)
-
         self.frame_indexes = frame_indexes      # this is used for show the frame index in the video
-
         self.qc_mode = qc_mode
         # self.duplication_index = frame_index        # to get the duplication frames position
 
@@ -57,7 +51,6 @@ class Label3D(Animator):
         self._init_properties()
         self._initGUI()
         self._load_labels()
-
 
         self.preview_mode_change()
 
@@ -320,6 +313,8 @@ class Label3D(Animator):
         #     assert self.nFrames == 2 * len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
         # else:
         #     assert self.nFrames == len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
+
+        # so the 
         if not self.view_mode:
             assert self.nFrames == len(
                 np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
@@ -760,7 +755,7 @@ class Label3D(Animator):
         print("Data saved!")
         return True
 
-    def save_mat(self, ):
+    def save_mat(self, ):           # this function should not be here, move to the frame sampler part, which will leave a file to build the mat file
         #TODO: modify the data structure to fit the DANNCE format
         print('saving the joints3d and labeled_points into a DANNCE format mat file')
         #saving the joints3d and labeled_points into a DANNCE format mat file
