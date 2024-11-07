@@ -315,11 +315,7 @@ class Label3D(Animator):
         #     assert self.nFrames == len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
 
         # so the 
-        if not self.view_mode:
-            assert self.nFrames == len(
-                np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
-        else:
-            assert self.nFrames == len(self.frame_indexes), "The frame index is not aligned with the video frames"
+        assert self.nFrames == len(self.frame_indexes), "The frame index is not aligned with the video frames"
 
         self.frameInd = np.arange(self.nFrames)
 
