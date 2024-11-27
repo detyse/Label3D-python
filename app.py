@@ -39,7 +39,6 @@
 # TODO: keep the point size of the joints when scaling -> means keep a relative fixed size in the view
 
 
-
 import os
 import sys
 import cv2
@@ -106,7 +105,7 @@ class ConfigWidget(QWidget):
         # Frame number to label could be empty; no column 2 widget needed here
 
         # add a load index, the index have higher priority then the frame number to label
-        self.load_index_label = QLabel("Load Index: ")
+        self.load_index_label = QLabel("Load, Index: ")
         self.load_index = QLineEdit()
         self.load_index_browse = QPushButton("...")
         self.load_index_browse.clicked.connect(lambda: self.file_dialog(self.load_index))
@@ -315,6 +314,7 @@ class LoadConfigWorker(QObject):
             self.finished.emit(params)
         else:
             self.error.emit("Failed to load configuration.")
+            
 
 
 class MainWindow(QMainWindow):
@@ -330,7 +330,6 @@ class MainWindow(QMainWindow):
         self.qc_mode = params['quality_control_on']
         self.frame_indexes = params['frame_indexes']    # the frame indexes are not required to be depulicated, for banner
 
-        
         # if the qc_mode is on, this index is a random sampled index with depulication
         # else the index is uniformly sampled
         # not set the default value for the frame_index, if the qc mode is on, the frame index should be read from the video folder

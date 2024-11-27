@@ -5,6 +5,7 @@ import json
 import csv
 import cv2
 import os
+import shutil
 
 import numpy as np
 from scipy.io import loadmat
@@ -47,9 +48,9 @@ class LoadYaml:
         except Exception as e:
             print(f"Error loading YAML file: {e}")
 
-    
-    # FIXME: consider the reload, if the indexes and frames are already stored, we could just load them directly
+
     def get_params(self, ):
+        # resave the cam_params data and the skeleton data
         params = {}
         params['cam_params'] = self.unpack_cam_params()
         params['skeleton_path'] = self.data["skeleton_path"]
@@ -58,6 +59,10 @@ class LoadYaml:
 
         # create the index and the frames here
         save_folder = self.data["save_path"]
+
+        # resave the cam_params data and the skeleton data
+        shutil.copy(self.data["cam_params"], os.path.join(save_folder, "cam_params.mat"))
+        shutil.copy(self.data["skeleton_path"], os.path.join(save_folder, "skeleton.json"))
 
         # NOTE: if the frames is stored in npy file, just load the npy file?
         # no, we should handle the npy and the mp4 in the same way
@@ -99,6 +104,8 @@ class LoadYaml:
 
         # save the index file should be the last step to load the params
         np.save(the_index_file, final_indexes)
+        
+        print(f"the frame indexes: {final_indexes}")
         params['frame_indexes'] = final_indexes
         if 'total_frames' not in locals():
             _, total_frames = self.get_index(sample_num)

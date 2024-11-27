@@ -32,7 +32,7 @@ class Label3D(Animator):
         
         # will be a just a folder
         self.skeleton = read_json_skeleton(skeleton)
-        self.label_num = frame_num2label
+        self.label_num = frame_num2label        # this property is not used at all
         self.total_frame_num = total_frame_num
         self.save_path = save_path
 
@@ -309,12 +309,11 @@ class Label3D(Animator):
 
         # align the frame index
         # NOTE: the index of qc should be a shuffled list, so the len of index should be the nFrames
-        # if self.qc_mode:
-        #     assert self.nFrames == 2 * len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
-        # else:
-        #     assert self.nFrames == len(np.load(self.frame_indexes)), "The frame index is not aligned with the video frames"
+        if self.qc_mode:
+            assert self.nFrames == 2 * len(self.frame_indexes), "The frame index is not aligned with the video frames"
+        else:
+            assert self.nFrames == len(self.frame_indexes), "The frame index is not aligned with the video frames"
 
-        # so the 
         assert self.nFrames == len(self.frame_indexes), "The frame index is not aligned with the video frames"
 
         self.frameInd = np.arange(self.nFrames)
