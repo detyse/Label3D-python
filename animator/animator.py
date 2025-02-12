@@ -58,11 +58,14 @@ class VideoAnimator(Animator):
         # self.video_paths = video_paths      # a list of video path
         # self.video_frames = self.load_videos(self.video_paths, label_num)
         
-        self.video_frames = self.load_videos(video_paths, label_num)
+        self.video_frames = self.load_videos(video_paths)
         # the video frames property should be a path of the file, 
 
         # update properties inherited from animator
-        self.nFrames = len(np.load(self.video_frames, mmap_mode='r'))        # the total number of frames
+        if self.video_frames.endswith('.npy'):
+            self.nFrames = len(np.load(self.video_frames, mmap_mode='r'))  # the total number of frames
+        elif self.video_frames.endswith('.mp4') or self.video_frames.endswith('.avi'):
+            self.nFrames = len(label_num)
         self.frame = 0      # the index start from 0
         # other properties as default  # self.frameRate = 1
         
@@ -81,7 +84,7 @@ class VideoAnimator(Animator):
         self.f_joints2markers = {}            # a dict map the joint name to the marker on this frame
         # will these change after reprojection? if not we could update the frame after the reprojection
         
-        # 
+        # reset the makers
         self.frames_markers = np.full((self.nFrames, len(self._joint_names), 2), np.nan)
         self.original_markers = np.full((self.nFrames, len(self._joint_names), 2), np.nan)      # not used for now
         # here markers are all position, not the items
@@ -93,9 +96,11 @@ class VideoAnimator(Animator):
         self.d_lines = 1
 
         # trivial properties
-        self.marker_size = 10       # the size of the point
+        self.marker_size = 5       # the size of the point
 
-        self.preview_mode = False       # the preview mode for the animator, if true, the animator could not be edited  
+        self.preview_mode = False       # the preview mode for the animator, if true, the animator could not be edited
+
+        self.label_num = label_num
 
         self.initUI()
         # self.update_frame()         # not call in this class, for a better control  # called by the load_labels in label3d
@@ -105,7 +110,7 @@ class VideoAnimator(Animator):
     # also just consider the npy file, do not consider the index frame
     # build the index
     # load the frame files from output folder
-    def load_videos(self, video_folder, label_num):
+    def load_videos(self, video_folder):
         # file_list = [f for f in os.listdir(video_folder) if os.path.isfile(os.path.join(video_folder, f))]
         file_list = os.listdir(video_folder)
 
@@ -114,9 +119,8 @@ class VideoAnimator(Animator):
             if file == "frames.npy":
                 return os.path.join(video_folder, file)
 
-                # frames = np.load(os.path.join(video_folder, file))
-                # return frames
-        
+            elif file == "0.mp4" or file == "0.avi":  # for the viewer mode
+                return os.path.join(video_folder, file)
 
         # # i think we are not using this right now, all the video will be saved as npy file
         # # because we want to solve the GUI block problem
@@ -255,7 +259,10 @@ class VideoAnimator(Animator):
         self.f_joints2markers = {}
         
         # current_frame = self.video_frames[self.frame]
-        current_frame = np.load(self.video_frames, mmap_mode='r')[self.frame]   # NOTE: could be time consuming
+        if self.video_frames.endswith('.npy'):
+            current_frame = np.load(self.video_frames, mmap_mode='r')[self.frame]  # NOTE: could be time consuming
+        elif self.video_frames.endswith('.mp4') or self.video_frames.endswith('.avi'):
+            current_frame = self.load_video_frame(self.video_frames, self.label_num, self.frame)
 
         height, width, channels = current_frame.shape       # the frame shape would change
         # print(f"frame shape: {height}, {width}, {channels}")
@@ -523,7 +530,8 @@ class VideoAnimator(Animator):
     
     def mousePressEvent(self, event):
         if not self.preview_mode:
-            if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
+            if event.button() == Qt.LeftButton and event.modifiers() != Qt.ControlModifier:
+
                 # pos = event.pos()           # the event pos relative to the widget, there is a position shift between the widget and the view
                 # get the true position in the view
                 view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
@@ -531,7 +539,8 @@ class VideoAnimator(Animator):
                 self.plot_marker_and_lines([scene_pos.x(), scene_pos.y()], reprojection=False)                  # plot the marker       # 
 
             # FIXME: the delete function on the first joint could not work properly
-            elif event.button() == Qt.RightButton and event.modifiers() == Qt.ControlModifier:
+            elif event.button() == Qt.RightButton and event.modifiers() != Qt.ControlModifier:
+
                 view_pos = self.view.mapFromGlobal(self.mapToGlobal(event.pos()))
                 scene_pos = self.view.mapToScene(view_pos)
                 item = self.scene.itemAt(scene_pos, self.view.transform())
@@ -545,6 +554,22 @@ class VideoAnimator(Animator):
         else:
             event.ignore()
 
+    # new function for the viewer mode
+    def load_video_frame(self, video_frames, label_num, frame):
+
+        print(f"video_frames: {video_frames}")
+        print(f"label_num: {label_num}")
+        print(f"frame: {frame}")
+
+        cap = cv2.VideoCapture(video_frames)
+        frame_index = label_num[frame]
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
+        ret, frame = cap.read()
+        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        frame = np.array(frame)
+
+        cap.release()
+        return frame
 
 # # utils
 # # some overrided helper classes
@@ -592,7 +617,8 @@ class SceneViewer(QGraphicsView):
 
 
     def mousePressEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton and event.modifiers() != Qt.ControlModifier:
+        #if event.button() == Qt.LeftButton and event.modifiers() == Qt.ControlModifier:
+        if event.button() == Qt.MiddleButton:
             self._dragging = True
             self._drag_start_pos = event.pos()
             # print("drag start position: ", self._drag_start_pos.x(), self._drag_start_pos.y())
@@ -612,7 +638,7 @@ class SceneViewer(QGraphicsView):
 
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MiddleButton:
             self._dragging = False
             self.setCursor(Qt.ArrowCursor)
         super().mouseReleaseEvent(event)
@@ -632,7 +658,7 @@ class Connection(QGraphicsLineItem):        # the line is not necessarily combin
         self.updateLine()
         
         the_color = QColor(color2QColor(color))
-        self.setPen(QPen(the_color, 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        self.setPen(QPen(the_color, 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
 
 
     def updateLine(self,):

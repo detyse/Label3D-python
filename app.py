@@ -1,43 +1,4 @@
-# update 20240716 
-# 1. find the bug of cannot delete the first joint 
-# 2. add the function that the qc are not require to label all the frames
-# 3. change the storage place of sampled frames
-# 4. save the qc passed indexes for usage
-
-# new update 20240717
-# 1. load cam params add the mat choose
-# 2. change the "load config" button to "start" button
-# 3. add load defined index option, the index is not required to be depulicated
-# 4. change the "load config" button to "load history" button (the config file is the highest priority, should we change that?)
-# 5. add preview module, which could repidly browse the video frames
-# 6. put the frames npy and the indexes into the output 
-# 7. the quality control is allowed to implement when the frames are not all labeled
-# 8. show the current frame index 
-# 9. save the qc passed indexes for usage
-# 10. concat the frames of all views into a single file
-# 11. GUI update, change the GUI: 
-#       the config window, add the load method to load the defined indexes  
-#       also do not block when loading the frames
-#       main window, add preview button at the bottom
-# 12. change some button
-# 13. change the video loading in the load config, instead of animator
-
-# a temp stable vision
-
-# here is the plan, time is 2024-05-26
-# we use the yaml to manage the config file for the 3D label, instead of a GUI
-# and we add a multi video method to label multiple videos at once (which requires properlly handling the animator loading )
-# and we add the original label saving funtion
-# also add the video 
-# add we test our videos and the params
-# update: load the video frames at the first place, do not nest the loader in to deeper layer
-
-# update: 2024-10-10 
-# TODO: delete the joint (use right mouse), than T, the joint will reappear, 
-# add a check, if the current label is not enought to reconstruct, then the delete the joint3d
-# TODO: the only one label will loss, after T is pressed
-# TODO: keep the transformation even changing frame, -> add 
-# TODO: keep the point size of the joints when scaling -> means keep a relative fixed size in the view
+# update: the labeled data could be loaded with only the output folder
 
 import os
 import sys
@@ -105,7 +66,7 @@ class ConfigWidget(QWidget):
         # Frame number to label could be empty; no column 2 widget needed here
 
         # add a load index, the index have higher priority then the frame number to label
-        self.load_index_label = QLabel("Load Index: ")
+        self.load_index_label = QLabel("Load, Index: ")
         self.load_index = QLineEdit()
         self.load_index_browse = QPushButton("...")
         self.load_index_browse.clicked.connect(lambda: self.file_dialog(self.load_index))
@@ -143,7 +104,7 @@ class ConfigWidget(QWidget):
         button_layout.addWidget(self.quality_control)
 
         # the load button
-        self.load_button = QPushButton("Load Config")
+        self.load_button = QPushButton("Start")
         self.load_button.clicked.connect(self.write_config)     # update the config and load the config
         button_layout.addWidget(self.load_button)
 
@@ -164,7 +125,7 @@ class ConfigWidget(QWidget):
 
     # file dialog
     def file_dialog(self, line_edit):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Choose Configuration File", "", "Config Files (*.yaml *.json *.mat *.npy);;All Files (*)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Choose File", "", "Config Files (*.yaml *.json *.mat *.npy *.csv *.xlsx *.txt);;All Files (*)")
         if file_path:
             line_edit.setText(file_path)
         # else:
@@ -181,7 +142,6 @@ class ConfigWidget(QWidget):
 
     # write the selected config into yaml file for reference and load
     # connect to the load button
-    # TODO: change the message box indicator to the QLabel indicator
     def write_config(self, ):           # should read all the config then write into a yaml file
         # unable the load button
         self.load_button.setEnabled(False)
@@ -211,8 +171,8 @@ class ConfigWidget(QWidget):
                     os.makedirs(save_path)
                 
                 # if any is empty, then show a warning
-                if not save_path or not video_folder or not cam_params or not skeleton_path:
-                    QMessageBox.warning(self, "Warning", "Please fill the config", QMessageBox.Ok)
+                if not save_path:   # or not cam_params or not skeleton_path:
+                    QMessageBox.warning(self, "Warning", "Please fill the save_path", QMessageBox.Ok)
                     return
                 
                 if not self.frame_num2label.text():
@@ -309,7 +269,7 @@ class LoadConfigWorker(QObject):
     @Slot()
     def load_config(self, ):
         loader = LoadYaml(self.yaml_path)
-        params = loader.get_params()
+        params = loader.get_params_new()        # FIXME test the new function here
         if params:
             self.finished.emit(params)
         else:
@@ -324,10 +284,11 @@ class MainWindow(QMainWindow):
         self.video_folder = params['video_folder']    # 
         self.skeleton_path = params['skeleton_path']
         self.frame_num2label = params['frame_num2label']
+        self.total_frame_num = params['total_frame_num']
         self.save_path = params['save_path']
         self.qc_mode = params['quality_control_on']
-        self.frame_indexes = params['frame_indexes']    # the frame indexes are not required to be depulicated
-        
+        self.frame_indexes = params['frame_indexes']    # the frame indexes are not required to be depulicated, for banner
+
         # if the qc_mode is on, this index is a random sampled index with depulication
         # else the index is uniformly sampled
         # not set the default value for the frame_index, if the qc mode is on, the frame index should be read from the video folder
@@ -343,8 +304,14 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 800, 600)
         
         layout = QVBoxLayout()
-        self.label3d = Label3D(camParams=self.camParams, video_folder=self.video_folder, skeleton=self.skeleton_path, frame_num2label=self.frame_num2label, save_path=self.save_path,
-                               frame_indexes=self.frame_indexes, qc_mode=self.qc_mode)        # newly added params
+        self.label3d = Label3D(camParams=self.camParams,video_folder=self.video_folder,
+                               skeleton=self.skeleton_path,
+                               frame_num2label=self.frame_num2label,
+                               save_path=self.save_path,
+                               frame_indexes=self.frame_indexes,
+                               qc_mode=self.qc_mode,
+                               view_mode=False,
+                               )        # newly added params
         # the frame index will generate automatically in the video folder
         layout.addWidget(self.label3d)
 
@@ -369,14 +336,17 @@ class MainWindow(QMainWindow):
         self.manualBox = QMessageBox()
         self.manualBox.setWindowTitle("User Manual")
         self.manualBox.setText("User Manual: \n\n"
-                                "1. Using \"Ctrl + Left\" to label on the view if the joint is select \n"
-                                "2. Push \"Q / E\" to select the joint \n"
-                                "3. \"Ctrl + Right\" could delete the markers \n"
-                                "4. Push \"D / A\" for next frame or last frame \n"
-                                "5. Push S for label saving \n"
-                                "6. Push \"Ctrl + R\" to clear create joint markers \n"
-                                "7. Push \"Up / Down\" to change the jump speed \n"
-                                "8. Push \"[ / ]\" to change the contrast of the view image \n"
+                                "1. Use \"Mouse Left\" to label on the view if the joint is select \n"
+                                "2. Press \"Q\" and \"E\" to select the joint \n"
+                                "3. Use \"Mouse Right\" could delete the markers \n"
+                                "4. Press \"D\" and \"A\" for next frame or last frame \n"
+                                "5. Press S for label saving \n"
+                                "6. Press \"R\" to clear create joint markers \n"
+                                "7. Press \"Up\" and \"Down\" to change the jump speed \n"
+                                "8. Press \"[\" and \"]\" to change the contrast of the view image \n"
+                                "9. Keep pressing \"Mouse Middle\" to drag the view \n"
+                                "10. Use \"Mouse Middle wheel\" to zoom in and zoom out \n"
+                                "11. Press \"F\" to rescale the view \n"
                                 "...")
         self.manualBox.exec()
 
