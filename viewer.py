@@ -37,7 +37,7 @@ class ViewerLoader(QWidget):
         layout = QGridLayout()
 
         self.video_path_label = QLabel("Video Path: ")
-        self.video_path = QLineEdit(r"D:/YL_Wang/Pose_dta/250108_comparison/M3_datasets_0109/test_2/frames")
+        self.video_path = QLineEdit(r"H:\JZ\2 2ms gain10 300s")
         self.video_path_browse = QPushButton("...")
         self.video_path_browse.clicked.connect(lambda: self.dir_dialog(self.video_path))
         layout.addWidget(self.video_path_label, 0, 0)
@@ -45,7 +45,7 @@ class ViewerLoader(QWidget):
         layout.addWidget(self.video_path_browse, 0, 2)
 
         self.prediction_path_label = QLabel("Predicted Path: ")
-        self.prediction_path = QLineEdit(r"D:/YL_Wang/Pose_dta/250108_comparison/M3_datasets_0109/test_2/frames/spose.pkl")
+        self.prediction_path = QLineEdit(r"H:\JZ\2 2ms gain10 300s\spose.pkl")
         self.prediction_path_browse = QPushButton("...")
         self.prediction_path_browse.clicked.connect(lambda: self.file_dialog(self.prediction_path))
         layout.addWidget(self.prediction_path_label, 1, 0)
@@ -62,7 +62,7 @@ class ViewerLoader(QWidget):
         layout.addWidget(self.skeleton_path_browse, 2, 2)
 
         self.param_path_label = QLabel("Param Path: ")
-        self.param_path = QLineEdit(r"D:/YL_Wang/Pose_dta/250108_comparison/M3_datasets_0109/test_2/frames/cam_params.mat")
+        self.param_path = QLineEdit(r"H:\JZ\2 2ms gain10 300s\cam_params.mat")
         self.param_path_browse = QPushButton("...")
         self.param_path_browse.clicked.connect(lambda: self.file_dialog(self.param_path))
         layout.addWidget(self.param_path_label, 3, 0)
@@ -261,6 +261,9 @@ class ViewerLoader(QWidget):
                 # load the viewer window
                 joints3d = filled_pred[view_indexes, :, :]
 
+                # fill the p_max value here
+                p_max = self.fill_p_max(p_max, skeleton, selected_joints)
+
                 kwargs['joints3d'] = joints3d
                 kwargs['p_max'] = p_max[view_indexes]
 
@@ -349,8 +352,8 @@ class ViewerLoader(QWidget):
             QMessageBox.critical(self, "Error", f"Error generating video: {str(e)}\n{traceback.format_exc()}")
             return
 
-    # check the pred shape
-    def fill_pred(self, pred, skeleton, selected_joints):
+    # check the pred shape, also fill the p_max value
+    def fill_pred(self, pred ,skeleton, selected_joints):
         # transpose the pred 
         pred = pred.transpose(0, 2, 1)      # (N, 3, K) -> (N, K, 3)
 
@@ -358,16 +361,37 @@ class ViewerLoader(QWidget):
         if len(selected_joints) == joints_num:
             return pred
 
+        # print(f"debug 20250310 {joints_num}")
+        selected_joints = np.array(selected_joints)
+
         # fill the pred with nan on the missing joints
         pred_filled = np.full((pred.shape[0], joints_num, 3), np.nan)
         
+        # print(f"debug 20250310 {selected_joints}")
+
         for i in range(joints_num):
+            # print(f"debug 20250310 {i}")
             if i in selected_joints:
                 # find the index of the selected joint
                 index = np.where(selected_joints == i)[0][0]
                 pred_filled[:, i, :] = pred[:, index, :]
 
         return pred_filled
+
+
+    def fill_p_max(self, p_max, skeleton, selected_joints):
+        # p_max shape is (N, K), K is the number of joints
+        p_max_filled = np.full((p_max.shape[0], len(skeleton["joint_names"])), np.nan)
+
+        selected_joints = np.array(selected_joints)
+
+        for i in range(len(skeleton["joint_names"])):
+            if i in selected_joints:
+                index = np.where(selected_joints == i)[0][0]
+                p_max_filled[:, i] = p_max[:, index]
+
+        return p_max_filled
+
 
     def on_viewer_window_close(self, event):
         self.show()

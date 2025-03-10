@@ -387,7 +387,10 @@ class Label3D(Animator):
             # do nothing
             return
 
+
     def update_p_max(self, ):
+        print(f"debug 20250310 {self.p_max.shape}")
+
         # update the p_max value in the radio button
         # iterate the joints name
         for i, joint in enumerate(self._joint_names):
