@@ -322,6 +322,14 @@ def reprojectToViews(points3d, r, t, K, RDist, TDist, view_num):
     for i in range(view_num):
         the_K = K[i]
         dist_coef = np.array([RDist[i][0][0], RDist[i][0][1], TDist[i][0][0], TDist[i][0][1], RDist[i][0][2]])
+        print(f"rvec[i]: {rvec[i]}")
+        print(f"t[i]: {t[i]}")
+        print(f"the_K: {the_K}")
+        print(f"dist_coef: {dist_coef}")
+        self.drvec = rvec[i]
+        self.dt = t[i]
+        self.dthe_K = the_K
+        self.ddist_coef = dist_coef
         reprojected_point, _ = cv2.projectPoints(points3d, rvec[i], t[i], the_K, dist_coef)
         reprojected_points.append(reprojected_point)
     

@@ -1013,6 +1013,13 @@ def reprojectToViews(points3d, r, t, K, RDist, TDist, view_num):
         the_K = K[i]
         # the_K[0, 1] = 0         # set the skew to 0
         dist_coef = np.array([RDist[i][0][0], RDist[i][0][1], TDist[i][0][0], TDist[i][0][1], RDist[i][0][2]])
+        print(f"debug 20250311 view_num: {i}")
+        print(f"debug 20250311 rvec[i]: {rvec[i]}")
+        print(f"debug 20250311 t[i]: {t[i]}")
+        print(f"debug 20250311 the_K: {the_K}")
+        print(f"debug 20250311 dist_coef: {dist_coef}")
+        print(f"debug 20250311 points3d: {points3d}")
+        print(f"====================================================")
         reprojected_point, _ = cv2.projectPoints(points3d, rvec[i], t[i], the_K, dist_coef)      # dist_coef
         reprojected_points.append(reprojected_point)
 
