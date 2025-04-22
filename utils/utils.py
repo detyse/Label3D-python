@@ -124,9 +124,12 @@ class LoadYaml:
 
             # if there is the index, load the index, else build the index
             if os.path.exists(os.path.join(save_folder, "indexes.npy")):
+                print(f"the index file exists")
                 params["frame_indexes"] = np.load(os.path.join(save_folder, "indexes.npy"))
             else:
+                print(f"the index file does not exist")
                 params["frame_indexes"] = self.get_index()      # FIXME this will be fine
+                print(f"the frame_indexes: {params['frame_indexes']}, type: {type(params['frame_indexes'])}")
 
             params["total_frame_num"] = params["frame_indexes"].shape[0]
             params["frame_num2label"] = None
@@ -330,7 +333,7 @@ class LoadYaml:
 
             # get the total frames
             total_frames = np.load(os.path.join(frames_path, view_folders[0], 'frames.npy')).shape[0]
-            return np.arange(total_frames), total_frames
+            return np.arange(total_frames)
 
         if total_frames is None:
             total_frames = self.get_frame_number(video_folder)
@@ -340,7 +343,7 @@ class LoadYaml:
         else:
             indexes = np.linspace(0, total_frames-1, sample_num, dtype=int)
     
-        return indexes, total_frames
+        return indexes
 
     
     # need shuffle and duplicate the index
