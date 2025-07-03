@@ -274,7 +274,8 @@ class LoadConfigWorker(QObject):
             self.finished.emit(params)
         else:
             self.error.emit("Failed to load configuration.")
-
+        # save the params
+        loader.save_other_params()
 
 class MainWindow(QMainWindow):
     def __init__(self, params, *args, **kwargs):

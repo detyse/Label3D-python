@@ -42,7 +42,8 @@ class Label3D(Animator):
         self.kwargs = kwargs
         self.views_video = self.get_views_video()        # the video path for each view, the video_folder    
 
-        assert len(self.camParams) == len(self.views_video)
+        # FIXME not work here... 
+        assert len(self.camParams) == len(self.views_video), f"The number of cameras and videos should be the same, {len(self.camParams)} != {len(self.views_video)}"
         self.view_num = len(self.camParams)
         self.frame_indexes = frame_indexes      # this is used for show the frame index in the video
         self.qc_mode = qc_mode

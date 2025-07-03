@@ -113,9 +113,9 @@ class LoadYaml:
                 raise ValueError("There should be built frames in the save folder")
             
             if os.path.exists(os.path.join(save_folder, "cam_params.mat")):
-                params["cam_params"] = self.unpack_cam_params(os.path.join(save_folder, "cam_params.mat"))
+                cam_params_path = os.path.join(save_folder, "cam_params.mat")
             else:
-                params["cam_params"] = self.data["cam_params"]
+                cam_params_path = self.data["cam_params"]
             
             if os.path.exists(os.path.join(save_folder, "skeleton.json")):
                 params["skeleton_path"] = os.path.join(save_folder, "skeleton.json")
@@ -134,6 +134,7 @@ class LoadYaml:
             params["total_frame_num"] = params["frame_indexes"].shape[0]
             params["frame_num2label"] = None
             params["quality_control_on"] = False
+            params["cam_params"] = self.unpack_cam_params(cam_params_path)
             return params
 
         else:
@@ -353,6 +354,7 @@ class LoadYaml:
         indexes = np.random.shuffle(indexes)
         return indexes
     
+
     # the function to build the frames, indexes is required
     # assert the video not aligned 
     # TODO: if the frames are already built, we could just load the frames
@@ -384,8 +386,9 @@ class LoadYaml:
             
         return
 
+    # this function is not used...
     def save_other_params(self, ):
-        save_folder = self.data["save_folder"]
+        save_folder = self.data["save_path"]
 
         # just rename the params file and the skeleton file
         params_file = self.data["cam_params"]
@@ -395,9 +398,17 @@ class LoadYaml:
         params_save = os.path.join(save_folder, "cam_params.mat")
         skeleton_save = os.path.join(save_folder, "skeleton.json")
 
-        shutil.copy(params_file, params_save)
-        shutil.copy(skeleton_file, skeleton_save)
-        
+        # if the file is exist, skip
+        if os.path.exists(params_save):
+            print(f"The params file {params_save} already exists, skip")
+        else:
+            shutil.copy(params_file, params_save)
+
+        if os.path.exists(skeleton_save):
+            print(f"The skeleton file {skeleton_save} already exists, skip")
+        else:
+            shutil.copy(skeleton_file, skeleton_save)
+
         return
 
 
