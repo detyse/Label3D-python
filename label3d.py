@@ -598,7 +598,7 @@ class Label3D(Animator):
             self.current_joint_idx = None
 
             # TODO: test work
-            for button in self.joint_button.itervalues():
+            for button in self.joint_button.values():
                 button.setChecked(False)
 
         else: 
