@@ -128,7 +128,7 @@ class LoadYaml:
                 params["frame_indexes"] = np.load(os.path.join(save_folder, "indexes.npy"))
             else:
                 print(f"the index file does not exist")
-                params["frame_indexes"] = self.get_index()      # FIXME this will be fine
+                params["frame_indexes"], _ = self.get_index()      # FIXME this will be fine
                 print(f"the frame_indexes: {params['frame_indexes']}, type: {type(params['frame_indexes'])}")
 
             params["total_frame_num"] = params["frame_indexes"].shape[0]
