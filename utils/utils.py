@@ -153,7 +153,7 @@ class LoadYaml:
                     params["frame_num2label"] = frame_num2label
 
                 # than make the index list
-                indexes = self.get_index(frame_num2label, None, )
+                indexes, total_frames = self.get_index(frame_num2label, None, )
 
                 if quality_control_on:
                     indexes = self.build_qc_index(indexes)
@@ -333,7 +333,7 @@ class LoadYaml:
 
             # get the total frames
             total_frames = np.load(os.path.join(frames_path, view_folders[0], 'frames.npy')).shape[0]
-            return np.arange(total_frames)
+            return np.arange(total_frames), total_frames
 
         if total_frames is None:
             total_frames = self.get_frame_number(video_folder)
@@ -343,7 +343,7 @@ class LoadYaml:
         else:
             indexes = np.linspace(0, total_frames-1, sample_num, dtype=int)
     
-        return indexes
+        return indexes, total_frames
 
     
     # need shuffle and duplicate the index

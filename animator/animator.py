@@ -557,10 +557,6 @@ class VideoAnimator(Animator):
     # new function for the viewer mode
     def load_video_frame(self, video_frames, label_num, frame):
 
-        print(f"video_frames: {video_frames}")
-        print(f"label_num: {label_num}")
-        print(f"frame: {frame}")
-
         cap = cv2.VideoCapture(video_frames)
         frame_index = label_num[frame]
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)

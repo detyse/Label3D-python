@@ -37,7 +37,7 @@ class ViewerLoader(QWidget):
         layout = QGridLayout()
 
         self.video_path_label = QLabel("Video Path: ")
-        self.video_path = QLineEdit(r"H:\JZ\2 2ms gain10 300s")
+        self.video_path = QLineEdit(r"E:/YLW_DATA/250419_YW_behavior_neural_data/M1/videos")
         self.video_path_browse = QPushButton("...")
         self.video_path_browse.clicked.connect(lambda: self.dir_dialog(self.video_path))
         layout.addWidget(self.video_path_label, 0, 0)
@@ -45,7 +45,7 @@ class ViewerLoader(QWidget):
         layout.addWidget(self.video_path_browse, 0, 2)
 
         self.prediction_path_label = QLabel("Predicted Path: ")
-        self.prediction_path = QLineEdit(r"H:\JZ\2 2ms gain10 300s\spose.pkl")
+        self.prediction_path = QLineEdit(r"E:\YLW_DATA\250419_YW_behavior_neural_data\M1\DANNCE\Predict\save_data_AVG0.mat")
         self.prediction_path_browse = QPushButton("...")
         self.prediction_path_browse.clicked.connect(lambda: self.file_dialog(self.prediction_path))
         layout.addWidget(self.prediction_path_label, 1, 0)
@@ -54,7 +54,7 @@ class ViewerLoader(QWidget):
 
         # do we need skeleton file and the param file?
         self.skeleton_path_label = QLabel("Skeleton Path: ")
-        self.skeleton_path = QLineEdit()
+        self.skeleton_path = QLineEdit(r"E:/YLW_DATA/250419_YW_behavior_neural_data/M3/mouse21_rid_TailEnd.json")
         self.skeleton_path_browse = QPushButton("...")
         self.skeleton_path_browse.clicked.connect(lambda: self.file_dialog(self.skeleton_path))
         layout.addWidget(self.skeleton_path_label, 2, 0)
@@ -62,7 +62,7 @@ class ViewerLoader(QWidget):
         layout.addWidget(self.skeleton_path_browse, 2, 2)
 
         self.param_path_label = QLabel("Param Path: ")
-        self.param_path = QLineEdit(r"H:\JZ\2 2ms gain10 300s\cam_params.mat")
+        self.param_path = QLineEdit(r"E:\YLW_DATA\250419_YW_behavior_neural_data\M1\cam_params.mat")
         self.param_path_browse = QPushButton("...")
         self.param_path_browse.clicked.connect(lambda: self.file_dialog(self.param_path))
         layout.addWidget(self.param_path_label, 3, 0)
