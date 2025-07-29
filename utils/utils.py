@@ -48,7 +48,7 @@ class LoadYaml:
             print(f"YAML data loaded: {self.data}")
         except Exception as e:
             print(f"Error loading YAML file: {e}")
-
+    
     # also check avaliable here
     def load_index_file(self, index_file, total_frames):    
         # index_file: path of the file

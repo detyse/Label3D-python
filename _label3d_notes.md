@@ -9,3 +9,8 @@
 
 + skeleton: skeleton_name-skeleton.json
 
+## viewer update notes
+
++ not using the generated skeleton. but using skeleton and joint selected combine.
+
++ no more consider the mat file video generation.

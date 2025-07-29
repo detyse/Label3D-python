@@ -27,6 +27,8 @@ class ConfigWidget(QWidget):
     # a new grid layout for better look and add the quality control option, as a radio button i think
     # alsowide enough to show the path
     def initUI(self):
+        self.setWindowTitle("Label3D")
+        
         # Create a grid layout
         layout = QGridLayout()
 
