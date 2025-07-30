@@ -151,9 +151,16 @@ class VideoMaker:
 
             print(f"[Info] Writing frames to: {out_path}")
             
-            # 分批处理帧
-            all_frames_cache = {}
+            # 不需要预先分组，直接在处理过程中按需处理
             
+            # 创建帧到序列位置的映射
+            frame_to_sequence_map = {frame_idx: i for i, frame_idx in enumerate(self.frame_indexes)}
+            
+            # 存储等待写入的帧数据（按序列顺序）
+            pending_frames = {}
+            next_frame_to_write = 0  # 下一个应该写入的序列位置
+            
+            # 分批处理：缓存->处理->写入->清理内存
             for batch_idx in range(num_batches):
                 batch_start = batch_idx * self.max_cache_frames
                 batch_end = min((batch_idx + 1) * self.max_cache_frames, total_unique_frames)
@@ -161,30 +168,41 @@ class VideoMaker:
                 
                 print(f"[Info] Batch {batch_idx + 1}/{num_batches}: Caching frames {batch_start + 1}-{batch_end}")
                 
-                # 缓存当前批次的帧
+                # 1. 缓存当前批次的帧
                 batch_cache = self._cache_frames_batch(cap, batch_frame_indices)
-                all_frames_cache.update(batch_cache)
                 
-                # 如果这不是最后一批，并且下一批需要的帧还没有被处理，继续缓存
-                if batch_idx < num_batches - 1:
-                    continue
+                # 2. 处理当前批次中的帧，按照self.frame_indexes的顺序准备数据
+                for frame_idx in batch_frame_indices:
+                    if frame_idx in frame_to_sequence_map:
+                        sequence_pos = frame_to_sequence_map[frame_idx]
+                        frame = batch_cache[frame_idx]
+                        the_frame = scatter_frame(frame, points2d[v_idx, sequence_pos, ...], self.skeleton, joints_selected=self.joints_selected)
+                        
+                        if the_frame.shape[1] != width or the_frame.shape[0] != height:
+                            the_frame = cv2.resize(the_frame, frame_size)
+                        
+                        pending_frames[sequence_pos] = the_frame
+                
+                # 3. 按顺序写入所有可以写入的帧
+                while next_frame_to_write in pending_frames:
+                    video_writer.write(pending_frames[next_frame_to_write])
+                    del pending_frames[next_frame_to_write]  # 立即释放内存
+                    next_frame_to_write += 1
+                    
+                    if next_frame_to_write % 50 == 0:
+                        print(f"[Progress] Written {next_frame_to_write}/{len(self.frame_indexes)} frames for video {v_idx+1}")
+                
+                # 4. 清理当前批次的缓存
+                del batch_cache
+                print(f"[Info] Batch {batch_idx + 1} processed, memory cleared. Pending: {len(pending_frames)} frames")
+            
+            # 5. 写入剩余的帧（如果有的话）
+            while next_frame_to_write < len(self.frame_indexes) and next_frame_to_write in pending_frames:
+                video_writer.write(pending_frames[next_frame_to_write])
+                del pending_frames[next_frame_to_write]
+                next_frame_to_write += 1
             
             cap.release()
-            
-            # 按指定顺序写入所有帧
-            total_frames_to_write = len(self.frame_indexes)
-            for i, frame_idx in enumerate(self.frame_indexes):
-                if i % 100 == 0:
-                    print(f"[Progress] Writing frame {i+1}/{total_frames_to_write} for video {v_idx+1}")
-                    
-                if frame_idx in all_frames_cache:
-                    frame = all_frames_cache[frame_idx]
-                    the_frame = scatter_frame(frame, points2d[v_idx, i, ...], self.skeleton, joints_selected=self.joints_selected)
-                    
-                    if the_frame.shape[1] != width or the_frame.shape[0] != height:
-                        the_frame = cv2.resize(the_frame, frame_size)
-                    
-                    video_writer.write(the_frame)
             
             video_writer.release()
             view_end_time = time.time()
