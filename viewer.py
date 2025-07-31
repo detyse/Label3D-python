@@ -177,7 +177,7 @@ class ViewerLoader(QWidget):
         # 添加内存管理设置
         cache_frames_label = QLabel("Cache Frames: ")
         self.cache_frames = QComboBox()
-        self.cache_frames.addItems(["500 (低内存)", "1000 (默认)", "2000 (中等内存)", "5000 (高内存)"])
+        self.cache_frames.addItems(["500 (低内存)", "1000 (默认)", "2000 (中等内存)", "5000 (高内存)", "10000 (超高内存)"])
         self.cache_frames.setCurrentText("1000 (默认)")
         self.cache_frames.setToolTip("控制一次缓存的帧数。根据您的内存大小选择：\n• 500: 适合8GB以下内存\n• 1000: 适合8-16GB内存\n• 2000: 适合16GB以上内存\n• 5000: 适合32GB以上内存")
         
