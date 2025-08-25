@@ -487,7 +487,7 @@ class ViewerLoader(QWidget):
                     fps=fps,
                     max_cache_frames=max_cache_frames
                 )
-
+                
                 # 启动视频生成工作线程
                 self.video_worker = VideoGenerationWorker(video_maker)
                 self.video_worker.progress_update.connect(self.update_status)
@@ -537,8 +537,6 @@ class ViewerLoader(QWidget):
         # fill the pred with nan on the missing joints
         pred_filled = np.full((pred.shape[0], joints_num, 3), np.nan)
         
-        # print(f"debug 20250310 {selected_joints}")
-
         for i in range(joints_num):
             # print(f"debug 20250310 {i}")
             if i in selected_joints:

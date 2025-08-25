@@ -14,3 +14,5 @@
 + not using the generated skeleton. but using skeleton and joint selected combine.
 
 + no more consider the mat file video generation.
+
++ if the video number not align with the number of cameras, assume the first n cameras are used.
