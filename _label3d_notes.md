@@ -9,6 +9,8 @@
 
 + skeleton: skeleton_name-skeleton.json
 
++ TODO: 进入 label 后在关闭窗口时, 回到初始的文件选择窗口
+
 ## viewer update notes
 
 + not using the generated skeleton. but using skeleton and joint selected combine.
