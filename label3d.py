@@ -96,17 +96,17 @@ class Label3D(Animator):
         TDist = []
 
         # TODO: confirm the camParams format and order
-        # FIXME add the print to check the shape of the cam params
+        # 强制转换 dtype
         for cam in self.camParams:          # keep order? 
-            r.append(cam["r"][0][0].T)      #
+            r.append(np.asarray(cam["r"][0][0].T, dtype=np.float64))      #
             # print(cam["r"][0][0].T.shape)
-            t.append(cam["t"][0][0])
+            t.append(np.asarray(cam["t"][0][0], dtype=np.float64))
             # print(cam["t"][0][0].shape)
-            K.append(cam["K"][0][0].T)        # temp change
+            K.append(np.asarray(cam["K"][0][0].T, dtype=np.float64))        # temp change
             # print(cam["K"][0][0].T.shape)
-            RDist.append(cam["RDistort"][0][0])
+            RDist.append(np.asarray(cam["RDistort"][0][0], dtype=np.float64))
             # print(cam["RDistort"][0][0].shape)
-            TDist.append(cam["TDistort"][0][0])
+            TDist.append(np.asarray(cam["TDistort"][0][0], dtype=np.float64))
             # print(cam["TDistort"][0][0].shape)
 
         self.r = np.array(r)
@@ -114,6 +114,13 @@ class Label3D(Animator):
         self.K = np.array(K)
         self.RDist = np.array(RDist)
         self.TDist = np.array(TDist)
+
+        # # FIXME temp 20251120 check the data type and shape here
+        # print(f"debug 20251120 r: {self.r.shape}, {self.r.dtype}")
+        # print(f"debug 20251120 t: {self.t.shape}, {self.t.dtype}")
+        # print(f"debug 20251120 K: {self.K.shape}, {self.K.dtype}")
+        # print(f"debug 20251120 RDist: {self.RDist.shape}, {self.RDist.dtype}")
+        # print(f"debug 20251120 TDist: {self.TDist.shape}, {self.TDist.dtype}")
 
 
     def _init_properties(self, ):        
