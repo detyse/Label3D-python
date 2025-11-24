@@ -528,6 +528,10 @@ class ViewerLoader(QWidget):
         pred = pred.transpose(0, 2, 1)      # (N, 3, K) -> (N, K, 3)
 
         joints_num = len(skeleton["joint_names"])
+
+        if selected_joints is None:
+            return pred
+
         if len(selected_joints) == joints_num:
             return pred
 
@@ -548,11 +552,18 @@ class ViewerLoader(QWidget):
 
 
     def fill_p_max(self, p_max, skeleton, selected_joints):
+
+        joints_num = len(skeleton["joint_names"])
+
+        if selected_joints is None or len(selected_joints) == joints_num:
+            return p_max
+
         # p_max shape is (N, K), K is the number of joints
-        p_max_filled = np.full((p_max.shape[0], len(skeleton["joint_names"])), np.nan)
+        p_max_filled = np.full((p_max.shape[0], joints_num), np.nan)
 
         selected_joints = np.array(selected_joints)
 
+        # FIXME the skeleton do not have joint_names key? or empty 
         for i in range(len(skeleton["joint_names"])):
             if i in selected_joints:
                 index = np.where(selected_joints == i)[0][0]

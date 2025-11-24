@@ -108,7 +108,7 @@ class Label3D(Animator):
             # print(cam["RDistort"][0][0].shape)
             TDist.append(np.asarray(cam["TDistort"][0][0], dtype=np.float64))
             # print(cam["TDistort"][0][0].shape)
-
+        
         self.r = np.array(r)
         self.t = np.array(t)
         self.K = np.array(K)
