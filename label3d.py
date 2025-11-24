@@ -135,7 +135,7 @@ class Label3D(Animator):
         # NOTE: _params are the immutable parameters
         self._joint_names = self.skeleton["joint_names"]
         self._joint_idx = self.skeleton["joints_idx"]               # no used
-        self._color = self.skeleton["color"]
+        self._color = self.skeleton["color"] if "color" in self.skeleton else self.skeleton.get("colors")
 
         self.current_joint = None
         self.current_joint_idx = None

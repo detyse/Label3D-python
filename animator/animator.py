@@ -73,7 +73,8 @@ class VideoAnimator(Animator):
         # properties for 2d keypoint animator
         self._joint_names = skeleton["joint_names"]
         self._joints_idx = skeleton["joints_idx"]        # the connection of joints, joints are indicated by index + 1
-        self._color = skeleton["color"]              # the color of the joints
+        # color or colors
+        self._color = skeleton["color"] if "color" in skeleton else skeleton.get("colors")
         self._joints_num = len(self._joint_names)        # total number of joints
         # NOTE: THESE PROPERTIES SHOULD NOT BE CHANGED IN THE CLASS, JUST FOR READ
         
