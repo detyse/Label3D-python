@@ -31,6 +31,7 @@ def read_json_skeleton(json_file):
         data = json.load(f)
     return data
 
+
 # TODO: check the yaml load and add the error handling
 # in the loading stage, the order is frames/videos -> index -> quality control
 @dataclass
@@ -92,6 +93,7 @@ class LoadYaml:
 
         print(f"the indexes: {indexes}")
         return indexes
+
 
     # TODO: divide new loading or old loading here, if there is joints3d, then it is old loading
     # and old loading could  laskdjf lljdo not consider the QC mode

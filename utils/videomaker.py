@@ -257,12 +257,23 @@ def scatter_frame(frame, points2d, skeleton, joints_selected=None, **kwargs):
         if joints_selected is not None and (start_joint_idx not in joints_selected or end_joint_idx not in joints_selected):
             continue
 
-        # 检查关节点是否有效
+        # 检查关节点是否有效（包括NaN和inf检查）
         if (start_joint_idx < num_joints and end_joint_idx < num_joints and
-            not np.isnan(points2d[start_joint_idx, 0]) and not np.isnan(points2d[end_joint_idx, 0])):
+            not np.isnan(points2d[start_joint_idx, 0]) and not np.isnan(points2d[end_joint_idx, 0]) and
+            not np.isinf(points2d[start_joint_idx, 0]) and not np.isinf(points2d[end_joint_idx, 0]) and
+            not np.isnan(points2d[start_joint_idx, 1]) and not np.isnan(points2d[end_joint_idx, 1]) and
+            not np.isinf(points2d[start_joint_idx, 1]) and not np.isinf(points2d[end_joint_idx, 1])):
             
-            start_point = (int(points2d[start_joint_idx, 0]), int(points2d[start_joint_idx, 1]))
-            end_point = (int(points2d[end_joint_idx, 0]), int(points2d[end_joint_idx, 1]))
+            # 安全地转换为整数坐标
+            try:
+                start_x = int(np.round(float(points2d[start_joint_idx, 0])))
+                start_y = int(np.round(float(points2d[start_joint_idx, 1])))
+                end_x = int(np.round(float(points2d[end_joint_idx, 0])))
+                end_y = int(np.round(float(points2d[end_joint_idx, 1])))
+                start_point = (start_x, start_y)
+                end_point = (end_x, end_y)
+            except (ValueError, OverflowError):
+                continue  # 跳过无法转换的点
             
             # 使用skeleton中保存的连接线颜色（RGBA -> BGR格式）
             if i < len(colors):
@@ -288,8 +299,17 @@ def scatter_frame(frame, points2d, skeleton, joints_selected=None, **kwargs):
         if joints_selected is not None and joint_idx not in joints_selected:
             continue
         
-        if not np.isnan(points2d[joint_idx, 0]):
-            point = (int(points2d[joint_idx, 0]), int(points2d[joint_idx, 1]))
+        # 检查点是否有效（包括NaN和inf检查）
+        if (not np.isnan(points2d[joint_idx, 0]) and not np.isnan(points2d[joint_idx, 1]) and
+            not np.isinf(points2d[joint_idx, 0]) and not np.isinf(points2d[joint_idx, 1])):
+            
+            # 安全地转换为整数坐标
+            try:
+                point_x = int(np.round(float(points2d[joint_idx, 0])))
+                point_y = int(np.round(float(points2d[joint_idx, 1])))
+                point = (point_x, point_y)
+            except (ValueError, OverflowError):
+                continue  # 跳过无法转换的点
             
             # 使用skeleton中保存的关节点颜色
             if joint_idx < len(colors):
